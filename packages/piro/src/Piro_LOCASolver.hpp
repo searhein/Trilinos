@@ -73,28 +73,48 @@ public:
   //@}
 
   //! Set start value for continuation parameter
-  void setStartValue(double start);
+  void
+  setStartValue(double start);
 
   //! Get start value for continuation parameter
-  double getStartValue() const;
+  double
+  getStartValue() const;
 
   //! Set minimum value for continuation parameter
-  void setMinValue(double min);
+  void
+  setMinValue(double min);
 
   //! Get minimum value for continuation parameter
-  double getMinValue() const;
+  double
+  getMinValue() const;
 
   //! Set maximum value for continuation parameter
-  void setMaxValue(double max);
+  void
+  setMaxValue(double max);
 
   //! Get maximum value for continuation parameter
-  double getMaxValue() const;
+  double
+  getMaxValue() const;
 
   //! Set step size for continuation parameter
-  void setStepSize(double size);
+  void
+  setStepSize(double size);
 
   //! Get maximum value for continuation parameter
-  double getStepSize() const;
+  double
+  getStepSize() const;
+
+  //! Return the current nonlinear solver pointer.
+  Teuchos::RCP<NOX::Solver::Generic>
+  getSolver() const;
+
+  //! Return stepper parameters
+  Teuchos::ParameterList &
+  getStepperParams() const;
+
+  //! Print solution
+  void
+  printSolution() const;
 
 private:
   /** \name Overridden from Thyra::ModelEvaluatorDefaultBase . */

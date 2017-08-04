@@ -203,6 +203,27 @@ Piro::LOCASolver<Scalar>::getStepSize() const
   return stepper_->getStepSize();
 }
 
+template<typename Scalar>
+Teuchos::RCP<NOX::Solver::Generic>
+Piro::LOCASolver<Scalar>::getSolver() const
+{
+  return stepper_->getSolver();
+}
+
+template<typename Scalar>
+Teuchos::ParameterList &
+Piro::LOCASolver<Scalar>::getStepperParams() const
+{
+  return stepper_->getParams();
+}
+
+template<typename Scalar>
+void
+Piro::LOCASolver<Scalar>::printSolution() const
+{
+  return stepper_->printSolution();
+}
+
 template <typename Scalar>
 void
 Piro::LOCASolver<Scalar>::evalModelImpl(
