@@ -72,9 +72,9 @@ namespace PHX{
     // typedef long unsigned int size_type;
     typedef PHX::Device::size_type size_type;
 
-    DataLayout() = default;
+    DataLayout() {}
 
-    virtual ~DataLayout() = default;
+    virtual ~DataLayout() {}
 
     virtual PHX::Device::size_type rank() const = 0; 
 
@@ -86,6 +86,12 @@ namespace PHX{
 
     virtual void 
     dimensions(std::vector<PHX::Device::size_type>& dim) const = 0; 
+
+    //! Returns the name of the input ordinal
+    virtual std::string name(size_type ordinal) const = 0;
+
+    //! Returns the names of all ordinals in a vector
+    virtual void names(std::vector<std::string>& names) const = 0; 
 
     virtual PHX::Device::size_type size() const = 0;
 

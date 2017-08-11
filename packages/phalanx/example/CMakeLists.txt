@@ -1,2 +1,1 @@
 ADD_SUBDIRECTORY(FiniteElementAssembly)
-ADD_SUBDIRECTORY(FiniteElementAssembly_MixedFieldTypes)

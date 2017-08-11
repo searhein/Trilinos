@@ -137,29 +137,29 @@ namespace PHX {
     MDALayout(const std::string& prefix,
 	      size_type size1);
 
-    virtual ~MDALayout() {}
+    ~MDALayout() {}
 
-    virtual bool operator==(const DataLayout& right) const override;
+    virtual bool operator==(const DataLayout& right) const;
 
-    virtual PHX::Device::size_type rank() const override; 
+    virtual PHX::Device::size_type rank() const; 
 
-    virtual PHX::Device::size_type dimension(size_type ordinal) const override;
+    virtual PHX::Device::size_type dimension(size_type ordinal) const;
 
-    virtual PHX::Device::size_type extent(size_type ordinal) const override;
+    virtual PHX::Device::size_type extent(size_type ordinal) const;
 
-    virtual int extent_int(size_type ordinal) const override;
+    virtual int extent_int(size_type ordinal) const;
 
-    virtual void dimensions(std::vector<PHX::Device::size_type>& dim) const override; 
+    virtual void dimensions(std::vector<PHX::Device::size_type>& dim) const; 
 
     virtual std::string name(size_type ordinal) const;
 
     virtual void names(std::vector<std::string>& names) const; 
 
-    virtual PHX::Device::size_type size() const override;
+    virtual PHX::Device::size_type size() const;
 
-    virtual std::string identifier() const override;
+    virtual std::string identifier() const;
 
-    virtual void print(std::ostream& os, int offset) const override;
+    virtual void print(std::ostream& os, int offset) const;
 
   private:
     

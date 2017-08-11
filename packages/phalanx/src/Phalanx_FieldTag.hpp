@@ -59,9 +59,9 @@ namespace PHX {
 
   public:
 
-    FieldTag() = default;
+    FieldTag() {}
     
-    virtual ~FieldTag() = default;
+    virtual ~FieldTag() {}
 
     virtual Teuchos::RCP<FieldTag> clone() const = 0;
 

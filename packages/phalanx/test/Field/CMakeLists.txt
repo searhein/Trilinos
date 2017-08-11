@@ -9,13 +9,6 @@ TRIBITS_ADD_EXECUTABLE_AND_TEST(
   )
 
 TRIBITS_ADD_EXECUTABLE_AND_TEST(
-  field
-  SOURCES Field.cpp
-  TESTONLYLIBS phalanx_unit_test_main phalanx_test_utilities
-  NUM_MPI_PROCS 1
-  )
-
-TRIBITS_ADD_EXECUTABLE_AND_TEST(
   mdfield_runtime
   SOURCES MDField_Runtime.cpp
   TESTONLYLIBS phalanx_unit_test_main phalanx_test_utilities

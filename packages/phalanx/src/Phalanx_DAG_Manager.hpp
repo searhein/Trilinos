@@ -140,18 +140,7 @@ namespace PHX {
     
     void setEvaluationTypeName(const std::string& evaluation_type_name);
     
-
-    /*! Returns the FieldTags for all fields involved in the
-        evaluation. Will return an empty vector unless the user has
-        built the DAG using one of the following calls:
-        postRegistrationSetup(), postRegistrationSetupForType() or
-        buildDagForType().
-
-        WARNING: This is a dangerous power user feature. It returns
-        non-const field tags so that the fields can be sized after the
-        DAG has been created.
-     */
-    const std::vector<Teuchos::RCP<PHX::FieldTag>>& getFieldTags();
+    const std::vector< Teuchos::RCP<PHX::FieldTag> >& getFieldTags();
 
     bool sortingCalled() const;
 

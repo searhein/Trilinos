@@ -91,21 +91,21 @@ namespace PHX {
 
     ~Tag();
 
-    Teuchos::RCP<FieldTag> clone() const override;
+    Teuchos::RCP<FieldTag> clone() const;
 
     void operator=(const PHX::Tag<const DataT>& t);
     
-    bool operator==(const FieldTag& t) const override;
+    bool operator==(const FieldTag& t) const;
     
-    const std::string& name() const override;
+    const std::string& name() const;
 
-    const PHX::DataLayout& dataLayout() const override;
+    const PHX::DataLayout& dataLayout() const;
 
-    const std::type_info& dataTypeInfo() const override;
+    const std::type_info& dataTypeInfo() const;
 
-    const std::string identifier() const override;
+    const std::string identifier() const;
 
-    void print(std::ostream& os) const override;
+    void print(std::ostream& os) const;
 
     template<typename> friend class Tag;
 
