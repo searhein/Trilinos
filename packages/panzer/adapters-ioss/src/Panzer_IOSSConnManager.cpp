@@ -1,11 +1,12 @@
 // @HEADER
-// ************************************************************************
+// ***********************************************************************
 //
-//                           Intrepid2 Package
-//                 Copyright (2007) Sandia Corporation
+//           Panzer: A partial differential equation assembly
+//       engine for strongly coupled complex multiphysics systems
+//                 Copyright (2011) Sandia Corporation
 //
-// Under terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-// license for use of this work by or on behalf of the U.S. Government.
+// Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
+// the U.S. Government retains certain rights in this software.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -34,39 +35,26 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact Kyungjoo Kim  (kyukim@sandia.gov), or
-//                    Mauro Perego  (mperego@sandia.gov)
-//
-// ************************************************************************
+// Questions? Contact Roger P. Pawlowski (rppawlo@sandia.gov) and
+// Eric C. Cyr (eccyr@sandia.gov)
+// ***********************************************************************
 // @HEADER
 
-/** \file test_01.cpp
-    \brief  Unit tests for Orientation class.
-    \author Created by Kyungjoo Kim
-*/
+#include "PanzerAdaptersIOSS_config.hpp"
 
-#include "Kokkos_Core.hpp"
+#include "Panzer_IOSSConnManager.hpp"
+#include "Panzer_IOSSConnManager_impl.hpp"
 
-#include "test_orientationtools_quad_coeff_matrix.hpp"
-#include "test_orientationtools_hex_coeff_matrix.hpp"
+#include <stdint.h> // for int64_t
 
-#include "test_orientationtools_tri_coeff_matrix.hpp"
-#include "test_orientationtools_tet_coeff_matrix.hpp"
+namespace panzer_ioss {
 
-int main(int argc, char *argv[]) {
+template class IOSSConnManager<int>;
 
-  const bool verbose = (argc-1) > 0;
-  Kokkos::initialize();
-  
-  int r_val = 0;
+#ifndef PANZER_ORDINAL64_IS_INT
+//template class IOSSConnManager<panzer::Ordinal64>;
+template class IOSSConnManager<int64_t>; // IOSS currently does not have a
+                                         // get_field_data<long long int>() defined.
+#endif
 
-  r_val += Intrepid2::Test::OrientationToolsQuadCoeffMatrix<Kokkos::Serial>(verbose);
-  r_val += Intrepid2::Test::OrientationToolsHexCoeffMatrix<Kokkos::Serial>(verbose);
-
-  r_val += Intrepid2::Test::OrientationToolsTriCoeffMatrix<Kokkos::Serial>(verbose);
-  //r_val += Intrepid2::Test::OrientationToolsTetCoeffMatrix<Kokkos::Serial>(verbose);
-
-  Kokkos::finalize();
-  return r_val;
 }
-
