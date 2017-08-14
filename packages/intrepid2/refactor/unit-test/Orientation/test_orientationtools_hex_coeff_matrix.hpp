@@ -111,7 +111,7 @@ namespace Intrepid2 {
       try {
 
         const ordinal_type testOrderBegin = 1, testOrderEnd = std::min(4, maxOrder);
-        for (ordinal_type testOrder=testOrderBegin;testOrder<testOrderEnd;++testOrder) {
+        for (ordinal_type testOrder=testOrderBegin;testOrder<=testOrderEnd;++testOrder) {
           *outStream << "\n -- Testing order " << testOrder << "\n" 
                      << "===============================================================================\n"
                      << "\n";
