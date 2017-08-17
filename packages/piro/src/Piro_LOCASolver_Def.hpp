@@ -144,66 +144,6 @@ Piro::LOCASolver<Scalar>::~LOCASolver()
 }
 
 template<typename Scalar>
-void
-Piro::LOCASolver<Scalar>::setStartValue(double start)
-{
-  stepper_->setStartValue(start);
-  return;
-}
-
-template<typename Scalar>
-double
-Piro::LOCASolver<Scalar>::getStartValue() const
-{
-  return stepper_->getStartValue();
-}
-
-template<typename Scalar>
-void
-Piro::LOCASolver<Scalar>::setMinValue(double min)
-{
-  stepper_->setMinValue(min);
-  return;
-}
-
-template<typename Scalar>
-double
-Piro::LOCASolver<Scalar>::getMinValue() const
-{
-  return stepper_->getMinValue();
-}
-
-template<typename Scalar>
-void
-Piro::LOCASolver<Scalar>::setMaxValue(double max)
-{
-  stepper_->setMaxValue(max);
-  return;
-}
-
-template<typename Scalar>
-double
-Piro::LOCASolver<Scalar>::getMaxValue() const
-{
-  return stepper_->getMaxValue();
-}
-
-template<typename Scalar>
-void
-Piro::LOCASolver<Scalar>::setStepSize(double size)
-{
-  stepper_->setStepSize(size);
-  return;
-}
-
-template<typename Scalar>
-double
-Piro::LOCASolver<Scalar>::getStepSize() const
-{
-  return stepper_->getStepSize();
-}
-
-template<typename Scalar>
 Teuchos::RCP<NOX::Solver::Generic>
 Piro::LOCASolver<Scalar>::getSolver() const
 {
@@ -218,10 +158,10 @@ Piro::LOCASolver<Scalar>::getStepperParams() const
 }
 
 template<typename Scalar>
-void
-Piro::LOCASolver<Scalar>::printSolution() const
+Teuchos::ParameterList &
+Piro::LOCASolver<Scalar>::getStepSizeParams() const
 {
-  return stepper_->printSolution();
+  return stepper_->getStepSizeParams();
 }
 
 template <typename Scalar>

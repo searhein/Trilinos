@@ -72,38 +72,6 @@ public:
   ~LOCASolver();
   //@}
 
-  //! Set start value for continuation parameter
-  void
-  setStartValue(double start);
-
-  //! Get start value for continuation parameter
-  double
-  getStartValue() const;
-
-  //! Set minimum value for continuation parameter
-  void
-  setMinValue(double min);
-
-  //! Get minimum value for continuation parameter
-  double
-  getMinValue() const;
-
-  //! Set maximum value for continuation parameter
-  void
-  setMaxValue(double max);
-
-  //! Get maximum value for continuation parameter
-  double
-  getMaxValue() const;
-
-  //! Set step size for continuation parameter
-  void
-  setStepSize(double size);
-
-  //! Get maximum value for continuation parameter
-  double
-  getStepSize() const;
-
   //! Return the current nonlinear solver pointer.
   Teuchos::RCP<NOX::Solver::Generic>
   getSolver() const;
@@ -112,9 +80,9 @@ public:
   Teuchos::ParameterList &
   getStepperParams() const;
 
-  //! Print solution
-  void
-  printSolution() const;
+  //! Return step size parameters
+  Teuchos::ParameterList &
+  getStepSizeParams() const;
 
 private:
   /** \name Overridden from Thyra::ModelEvaluatorDefaultBase . */

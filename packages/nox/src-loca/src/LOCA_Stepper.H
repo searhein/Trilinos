@@ -182,45 +182,13 @@ namespace LOCA {
     virtual double
     getContinuationParameter() const;
 
-    //! Set start value for continuation parameter
-    void
-    setStartValue(double start);
-
-    //! Get start value for continuation parameter
-    double
-    getStartValue() const;
-
-    //! Set minimum value for continuation parameter
-    void
-    setMinValue(double min);
-
-    //! Get minimum value for continuation parameter
-    double
-    getMinValue() const;
-
-    //! Set maximum value for continuation parameter
-    void
-    setMaxValue(double max);
-
-    //! Get maximum value for continuation parameter
-    double
-    getMaxValue() const;
-
-    //! Set step size for continuation parameter
-    void
-    setStepSize(double size);
-
-    //! Get maximum value for continuation parameter
-    double
-    getStepSize() const;
-
     //! Get parameter list
     Teuchos::ParameterList &
     getParams() const;
 
-    //! Print solution
-    void
-    printSolution() const;
+    //! Get step size parameter list
+    Teuchos::ParameterList &
+    getStepSizeParams() const;
 
   protected:
 
