@@ -1,9 +1,8 @@
 // @HEADER
-//
 // ***********************************************************************
 //
-//        MueLu: A package for multigrid based preconditioning
-//                  Copyright 2012 Sandia Corporation
+//          Tpetra: Templated Linear Algebra Services Package
+//                 Copyright (2008) Sandia Corporation
 //
 // Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
 // the U.S. Government retains certain rights in this software.
@@ -35,22 +34,27 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact
-//                    Jonathan Hu       (jhu@sandia.gov)
-//                    Andrey Prokopenko (aprokop@sandia.gov)
-//                    Ray Tuminaro      (rstumin@sandia.gov)
+// Questions? Contact Michael A. Heroux (maherou@sandia.gov)
 //
-// ***********************************************************************
-//
+// ************************************************************************
 // @HEADER
 
-#include "MueLu_Factory.hpp"
+#ifndef TPETRA_IALLREDUCE_HPP
+#define TPETRA_IALLREDUCE_HPP
 
-namespace MueLu {
+/// \file Tpetra_iallreduce.hpp
+/// \brief Declaration of Tpetra::iallreduce
+///
+/// Tpetra::iallreduce wraps MPI_Iallreduce, with a nonblocking
+/// fall-back implementation if MPI_Iallreduce doesn't exist (i.e., if
+/// MPI_VERSION < 3).
 
-  bool Factory::timerSync_ = false;
-#ifdef HAVE_MUELU_DEBUG
-  Factory::multipleCallCheckEnum Factory::multipleCallCheckGlobal_ = ENABLED;
-#endif
+#include "Tpetra_Details_iallreduce.hpp"
 
-} // namespace MueLu
+namespace Tpetra {
+
+using ::Tpetra::Details::iallreduce;
+
+} // namespace Tpetra
+
+#endif // TPETRA_IALLREDUCE_HPP
