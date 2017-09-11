@@ -66,7 +66,7 @@
 #include "Tpetra_Details_Environment.hpp"
 #include "Tpetra_Details_getEntryOnHost.hpp"
 #include "Tpetra_Details_packCrsMatrix.hpp"
-#include "Tpetra_Details_unpackCrsMatrix.hpp"
+#include "Tpetra_Details_unpackCrsMatrixAndCombine.hpp"
 #include <typeinfo>
 #include <vector>
 
@@ -548,11 +548,11 @@ namespace Tpetra {
 
   template <class Scalar, class LocalOrdinal, class GlobalOrdinal, class Node, const bool classic>
   CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node, classic>::
-  CrsMatrix (const Teuchos::RCP<const map_type>& rowMap,
+  CrsMatrix (const local_matrix_type& lclMatrix,
+             const Teuchos::RCP<const map_type>& rowMap,
              const Teuchos::RCP<const map_type>& colMap,
              const Teuchos::RCP<const map_type>& domainMap,
              const Teuchos::RCP<const map_type>& rangeMap,
-             const local_matrix_type& lclMatrix,
              const Teuchos::RCP<Teuchos::ParameterList>& params) :
     dist_object_type (rowMap),
     lclMatrix_ (lclMatrix),
@@ -7575,6 +7575,9 @@ namespace Tpetra {
                            const Teuchos::RCP<Teuchos::ParameterList>& params) const
   {
     using Tpetra::Details::getArrayViewFromDualView;
+    using Tpetra::Details::packCrsMatrixWithOwningPIDs;
+    using Tpetra::Details::unpackAndCombineWithOwningPIDsCount;
+    using Tpetra::Details::unpackAndCombineIntoCrsArrays;
     using Teuchos::ArrayRCP;
     using Teuchos::ArrayView;
     using Teuchos::Comm;
@@ -7971,11 +7974,9 @@ namespace Tpetra {
         destMat->numExportPacketsPerLID_.template modify<Kokkos::HostSpace> ();
         Teuchos::ArrayView<size_t> numExportPacketsPerLID =
           getArrayViewFromDualView (destMat->numExportPacketsPerLID_);
-        Tpetra::Details::packCrsMatrixWithOwningPIDs (*this, destMat->exports_,
-                                                      numExportPacketsPerLID,
-                                                      ExportLIDs, SourcePids,
-                                                      constantNumPackets,
-                                                      Distor);
+        packCrsMatrixWithOwningPIDs (*this, destMat->exports_,
+                                     numExportPacketsPerLID, ExportLIDs,
+                                     SourcePids, constantNumPackets, Distor);
       }
       catch (std::exception& e) {
         os << "Proc " << myRank << ": " << e.what ();
@@ -7987,7 +7988,7 @@ namespace Tpetra {
       }
       if (gblErr != 0) {
         if (myRank == 0) {
-          cerr << "packAndPrepareWithOwningPIDs threw an exception: " << endl;
+          cerr << "packCrsMatrixWithOwningPIDs threw an exception: " << endl;
         }
         std::ostringstream err;
         for (int r = 0; r < numProcs; ++r) {
@@ -8000,7 +8001,7 @@ namespace Tpetra {
         }
 
         TEUCHOS_TEST_FOR_EXCEPTION(
-          true, std::logic_error, "packAndPrepareWithOwningPIDs threw an "
+          true, std::logic_error, "packCrsMatrixWithOwningPIDs threw an "
           "exception.");
       }
     }
@@ -8011,11 +8012,9 @@ namespace Tpetra {
       destMat->numExportPacketsPerLID_.template modify<Kokkos::HostSpace> ();
       Teuchos::ArrayView<size_t> numExportPacketsPerLID =
         getArrayViewFromDualView (destMat->numExportPacketsPerLID_);
-      Tpetra::Details::packCrsMatrixWithOwningPIDs (*this, destMat->exports_,
-                                                    numExportPacketsPerLID,
-                                                    ExportLIDs, SourcePids,
-                                                    constantNumPackets,
-                                                    Distor);
+      packCrsMatrixWithOwningPIDs (*this, destMat->exports_,
+                                   numExportPacketsPerLID, ExportLIDs,
+                                   SourcePids, constantNumPackets, Distor);
     }
 #endif // HAVE_TPETRA_DEBUG
 
@@ -8139,14 +8138,10 @@ namespace Tpetra {
     Teuchos::ArrayView<const char> hostImports =
       getArrayViewFromDualView (destMat->imports_);
     size_t mynnz =
-      Import_Util::unpackAndCombineWithOwningPIDsCount (*this, RemoteLIDs,
-                                                        hostImports,
-                                                        numImportPacketsPerLID,
-                                                        constantNumPackets,
-                                                        Distor, INSERT,
-                                                        NumSameIDs,
-                                                        PermuteToLIDs,
-                                                        PermuteFromLIDs);
+      unpackAndCombineWithOwningPIDsCount (*this, RemoteLIDs, hostImports,
+                                           numImportPacketsPerLID,
+                                           constantNumPackets, Distor, INSERT,
+                                           NumSameIDs, PermuteToLIDs, PermuteFromLIDs);
     size_t N = BaseRowMap->getNodeNumElements ();
 
     // Allocations
@@ -8171,12 +8166,13 @@ namespace Tpetra {
     // in a huge list of arrays is icky.  Can't we have a bit of an
     // abstraction?  Implementing a concrete DistObject subclass only
     // takes five methods.
-    Import_Util::unpackAndCombineIntoCrsArrays (*this, RemoteLIDs, hostImports,
-                                                numImportPacketsPerLID,
-                                                constantNumPackets, Distor, INSERT, NumSameIDs,
-                                                PermuteToLIDs, PermuteFromLIDs, N, mynnz, MyPID,
-                                                CSR_rowptr (), CSR_colind_GID (), CSR_vals (),
-                                                SourcePids (), TargetPids);
+    unpackAndCombineIntoCrsArrays (*this, RemoteLIDs, hostImports,
+                                   numImportPacketsPerLID, constantNumPackets,
+                                   Distor, INSERT, NumSameIDs, PermuteToLIDs,
+                                   PermuteFromLIDs, N, mynnz, MyPID,
+                                   CSR_rowptr (), CSR_colind_GID (),
+                                   Teuchos::av_reinterpret_cast<impl_scalar_type> (CSR_vals ()),
+                                   SourcePids (), TargetPids);
 
     /**************************************************************/
     /**** 4) Call Optimized MakeColMap w/ no Directory Lookups ****/
