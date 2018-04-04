@@ -38,7 +38,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/Tools)
 
 APPEND_SET(HEADERS
   ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.h
-  )
+)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -93,8 +93,24 @@ APPEND_SET(SOURCES
   dummy.cpp
 )
 
+## AH 09/13/2017:
+## Adding Stratimikos adapters
+#
+# Stratimikos
+#
+IF (${PACKAGE_NAME}_ENABLE_Stratimikos)
+    SET_AND_INC_DIRS(DIR ${CMAKE_CURRENT_SOURCE_DIR}/Adapters/stratimikos)
+
+    APPEND_SET(HEADERS
+      ${DIR}/Stratimikos_FROSchHelpers.hpp
+      ${DIR}/Thyra_FROSchPreconditionerFactory_decl.hpp
+      ${DIR}/Thyra_FROSchPreconditionerFactory_def.hpp
+      ${DIR}/Thyra_FROSchPreconditionerFactory.hpp      
+    )
+ENDIF()
+
 TRIBITS_ADD_LIBRARY(
   shylu_ddfrosch
   HEADERS ${HEADERS}
   SOURCES ${SOURCES}
-  )
+)

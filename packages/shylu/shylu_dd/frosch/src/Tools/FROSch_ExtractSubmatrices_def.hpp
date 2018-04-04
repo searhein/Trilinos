@@ -54,7 +54,7 @@ namespace FROSch {
         Teuchos::RCP<Xpetra::Import<LO,GO,NO> > scatter = Xpetra::ImportFactory<LO,GO,NO>::Build(globalMatrix->getRowMap(),map);
         subdomainMatrix->doImport(*globalMatrix,*scatter,Xpetra::ADD);
         //cout << *subdomainMatrix << std::endl;
-        Teuchos::RCP<const Teuchos::Comm<LO> > SerialComm = rcp(new Teuchos::MpiComm<LO>(MPI_COMM_SELF));
+        Teuchos::RCP<const Teuchos::Comm<LO> > SerialComm = Teuchos::rcp(new Teuchos::MpiComm<LO>(MPI_COMM_SELF));
         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > localSubdomainMap = Xpetra::MapFactory<LO,GO,NO>::Build(map->lib(),map->getNodeNumElements(),0,SerialComm);
         Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > localSubdomainMatrix = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(localSubdomainMap,globalMatrix->getNodeMaxNumRowEntries());
         

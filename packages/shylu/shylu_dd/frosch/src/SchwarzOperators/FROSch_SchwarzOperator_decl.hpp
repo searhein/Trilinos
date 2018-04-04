@@ -141,17 +141,17 @@ namespace FROSch {
         
         // Y = alpha * A^mode * X + beta * Y
         virtual void apply(const MultiVector &x,
-                          MultiVector &y,
-                          Teuchos::ETransp mode=Teuchos::NO_TRANS,
-                          SC alpha=Teuchos::ScalarTraits<SC>::one(),
-                          SC beta=Teuchos::ScalarTraits<SC>::zero()) const;
+                           MultiVector &y,
+                           Teuchos::ETransp mode=Teuchos::NO_TRANS,
+                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
+                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const;
         
         virtual void apply(const MultiVector &x,
-                          MultiVector &y,
-                          bool usePreconditionerOnly,
-                          Teuchos::ETransp mode=Teuchos::NO_TRANS,
-                          SC alpha=Teuchos::ScalarTraits<SC>::one(),
-                          SC beta=Teuchos::ScalarTraits<SC>::zero()) const = 0;
+                           MultiVector &y,
+                           bool usePreconditionerOnly,
+                           Teuchos::ETransp mode=Teuchos::NO_TRANS,
+                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
+                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const = 0;
         
         virtual ConstMapPtr getDomainMap() const;
         
