@@ -220,11 +220,23 @@ namespace FROSch {
     typename CoarseOperator<SC,LO,GO,NO>::CrsMatrixPtr CoarseOperator<SC,LO,GO,NO>::buildCoarseMatrix()
     {
         CoarseMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(Phi_->getDomainMap(),1);
+        
+        /*
+         AH 08/05/2018: Allokierung kann man wahrscheinlich auf 0 setzen (Gespräch mit CG)
+         */
         CrsMatrixPtr k0 = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseMap_,CoarseMap_->getNodeNumElements());
         CrsMatrixPtr tmp = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(this->K_->getRowMap(),50);
         
         Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*this->K_,false,*Phi_,false,*tmp);
         Xpetra::MatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*tmp,false,*k0);
+        /*
+         AH: 08/05/2018: Für Reuse, die Matrix aus dem vorherigen Schritt einfach reingeben -> Siehe MueLu_RAPFactory
+         */
+        
+        /*
+         AH 08/05/2018: Hier das Tripple-Produkt statt zweimal Produkt. Das geht aber aktuell wohl nur für Tpetra (Gespräch mit CG)
+         */
+        // Xpetra::TrippleMatrixMatrix<SC,LO,GO,NO>::Multiply(*Phi_,true,*this->K_,false,*Phi_,false,*k0);
         
         return k0;
     }

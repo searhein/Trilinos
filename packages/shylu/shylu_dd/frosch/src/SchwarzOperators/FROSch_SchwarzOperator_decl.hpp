@@ -45,6 +45,7 @@
 #define FROSCH_ASSERT(A,S) if(!(A)) { std::cerr<<"Assertion failed. "<<S<<std::endl; std::cout.flush(); throw std::out_of_range("Assertion.");};
 
 #include <Xpetra_MatrixMatrix.hpp>
+#include <Xpetra_TrippleMatrixMultiply.hpp>
 #include <Xpetra_Export.hpp>
 
 #include <Teuchos_DefaultSerialComm.hpp>
