@@ -329,7 +329,7 @@ namespace FROSch {
         DDInterface_.reset(new DDInterface<SC,LO,GO,NO>(dimension,dofsPerNode,nodesMap));
         DDInterface_->resetGlobalDofs(dofsMaps);
         DDInterface_->removeDirichletNodes(tmpDirichletBoundaryDofs());
-        if (this->ParameterList_->get("Test Unconnected Interface",true)) {
+        if (this->ParameterList_->get("Partition Unconnected Interface Components",true)) {
             DDInterface_->divideUnconnectedEntities(this->K_);
         }
 

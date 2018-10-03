@@ -56,13 +56,13 @@ namespace FROSch {
         if (this->ParameterList_->get("TwoLevel",true)) {            
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
 //                FROSCH_ASSERT(false,"not implemented for block.");
-                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Test Unconnected Interface",false);
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("InterfacePartitionOfUnity").set("Partition Unconnected Interface Components",false);
                 CoarseOperator_ = IPOUHarmonicCoarseOperatorPtr(new IPOUHarmonicCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"IPOUHarmonicCoarseOperator")));
             } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
-                this->ParameterList_->sublist("GDSWCoarseOperator").set("Test Unconnected Interface",false);
+                this->ParameterList_->sublist("GDSWCoarseOperator").set("Partition Unconnected Interface Components",false);
                 CoarseOperator_ = GDSWCoarseOperatorPtr(new GDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"GDSWCoarseOperator")));
             } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
-                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Test Unconnected Interface",false);
+                this->ParameterList_->sublist("RGDSWCoarseOperator").set("Partition Unconnected Interface Components",false);
                 CoarseOperator_ = RGDSWCoarseOperatorPtr(new RGDSWCoarseOperator<SC,LO,GO,NO>(k,sublist(parameterList,"RGDSWCoarseOperator")));
             } else {
                 FROSCH_ASSERT(0!=0,"CoarseOperator Type unkown.");

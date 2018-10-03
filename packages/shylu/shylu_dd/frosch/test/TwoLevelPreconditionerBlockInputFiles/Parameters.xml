@@ -78,7 +78,7 @@
         
         <ParameterList name="IPOUHarmonicCoarseOperator">
             <Parameter name="Use Triple MatrixMultiply"                     type="bool"     value="false"/>
-            <Parameter name="Test Unconnected Interface"                    type="bool"     value="false"/>
+            <Parameter name="Partition Unconnected Interface Components"    type="bool"     value="false"/>
             <ParameterList name="Blocks">
                 <ParameterList name="1">
                     <Parameter name="Exclude"	                            type="string"   value="2"/>
@@ -242,7 +242,7 @@
         
         <ParameterList name="GDSWCoarseOperator">
             <Parameter name="Use Triple MatrixMultiply"                     type="bool"     value="false"/>
-            <Parameter name="Test Unconnected Interface"                    type="bool"     value="false"/>
+            <Parameter name="Partition Unconnected Interface Components"    type="bool"     value="false"/>
             <Parameter name="Threshold Phi"                                 type="double"   value="1.e-8"/>
             <ParameterList name="Blocks">
                 <ParameterList name="1">
@@ -404,7 +404,7 @@
         
         <ParameterList name="RGDSWCoarseOperator">
             <Parameter name="Use Triple MatrixMultiply"                     type="bool"     value="false"/>
-            <Parameter name="Test Unconnected Interface"                    type="bool"     value="false"/>
+            <Parameter name="Partition Unconnected Interface Components"    type="bool"     value="false"/>
             <ParameterList name="Blocks">
                 <ParameterList name="1">
                     <Parameter name="Exclude"	                            type="string"   value="2"/>

@@ -178,9 +178,10 @@ namespace FROSch {
             
             // Compute Interface Partition of Unity
             if (!coarseSpaceList->sublist("InterfacePartitionOfUnity").get("Type","GDSW").compare("GDSW")) {
-
-                coarseSpaceList->sublist("InterfacePartitionOfUnity").sublist("GDSW").set("Test Unconnected Interface",this->ParameterList_->get("Test Unconnected Interface",true)); 
+                coarseSpaceList->sublist("InterfacePartitionOfUnity").sublist("GDSW").set("Partition Unconnected Interface Components",this->ParameterList_->get("Partition Unconnected Interface Components",true)); 
                 InterfacePartitionOfUnity_ = InterfacePartitionOfUnityPtr(new GDSWInterfacePartitionOfUnity<SC,LO,GO,NO>(this->MpiComm_,this->SerialComm_,dimension,this->DofsPerNode_[blockId],nodesMap,this->DofsMaps_[blockId],sublist(sublist(coarseSpaceList,"InterfacePartitionOfUnity"),"GDSW")));
+            } else if (!coarseSpaceList->sublist("InterfacePartitionOfUnity").get("Type","GDSW").compare("RGDSW")) {
+                FROSCH_ASSERT(0!=0,"InterfacePartitionOfUnity Type is unknown.");
             } else {
                 FROSCH_ASSERT(0!=0,"InterfacePartitionOfUnity Type is unknown.");
             }            

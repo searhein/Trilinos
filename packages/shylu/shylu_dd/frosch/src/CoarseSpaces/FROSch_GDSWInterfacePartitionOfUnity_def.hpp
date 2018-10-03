@@ -144,7 +144,7 @@ namespace FROSch {
     int GDSWInterfacePartitionOfUnity<SC,LO,GO,NO>::sortInterface(CrsMatrixPtr matrix,
                                                                   MultiVectorPtr nodeList)
     {
-        if (this->ParameterList_->get("Test Unconnected Interface",true)) {
+        if (this->ParameterList_->get("Partition Unconnected Interface Components",true)) {
             this->DDInterface_->divideUnconnectedEntities(matrix);
         }
         this->DDInterface_->sortEntities(nodeList);
