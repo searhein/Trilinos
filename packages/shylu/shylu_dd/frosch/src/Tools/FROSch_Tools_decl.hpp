@@ -45,6 +45,7 @@
 #define FROSCH_ASSERT(A,S) if(!(A)) { std::cerr<<"Assertion failed. "<<S<<std::endl; std::cout.flush(); throw std::out_of_range("Assertion.");};
 
 #include <ShyLU_DDFROSch_config.h>
+#include <FROSch_SchwarzOperator_def.hpp>
 
 #include <Xpetra_MatrixFactory.hpp>
 #include <Xpetra_MultiVectorFactory.hpp>
@@ -55,6 +56,7 @@
 #include <Zoltan2_XpetraCrsMatrixAdapter.hpp>
 #include <Zoltan2_PartitioningProblem.hpp>
 #include <Zoltan2_XpetraCrsGraphAdapter.hpp>
+
 #endif
 
 namespace FROSch {
@@ -77,9 +79,8 @@ namespace FROSch {
     int ExtendOverlapByOneLayer(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &overlappingMatrix,
                                 Teuchos::RCP<Xpetra::Map<LO,GO,NO> > &overlappingMap);
 
-//    template <class SC,class LO,class GO,class NO>
-//    int ExtendOverlapByOneLayerBlock(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &overlappingMatrix,
-//                                     Teuchos::ArrayRCP<<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > &overlappingMapBlocks);
+  template <class SC,class LO,class GO,class NO>
+    int ExtendOverlapByOneLayerBlock(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &overlappingMatrix,                                     Teuchos::ArrayRCP<<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > &overlappingMapBlocks);
     
     template <class LO,class GO,class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > AssembleMaps(Teuchos::ArrayView<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > mapVector,
@@ -185,6 +186,9 @@ namespace FROSch {
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
     template <class SC, class LO,class GO,class NO>
     int RepartionMatrixZoltan2(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &crsMatrix, Teuchos::RCP<Teuchos::ParameterList> parameterList);
+    
+    //template <class SC, class LO, class GO, class NO>
+    //Teuchos::RCP<Xpetra::CrsGraph<LO,GO,NO> > BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > DDInterface_);
     
     template <class SC, class LO, class GO, class NO>
     Teuchos::RCP<Xpetra::Map<LO,GO,NO> > BuildRepMap_Zoltan(Teuchos::RCP<Xpetra::CrsGraph<LO,GO,NO> > Xgraph,
