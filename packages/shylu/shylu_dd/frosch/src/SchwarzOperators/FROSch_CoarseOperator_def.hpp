@@ -75,6 +75,63 @@ namespace FROSch {
         CoarseSolver_.reset();
     }
     
+    template<class SC,class LO, class GO, class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::CrsGraphPtr CoarseOperator<SC,LO,GO,NO>::BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_){
+        std::map<GO,int> rep;
+        Teuchos::Array<GO> entries;
+        GOVec2D conn;
+        theDDInterface_->identifyConnectivityEntities();
+        EntitySetConstPtr Connect =  theDDInterface_->getConnectivityEntities();
+        Connect->buildEntityMap(theDDInterface_->getNodesMap());
+        InterfaceEntityPtrVec ConnVec = Connect->getEntityVector();
+        GO ConnVecSize = ConnVec.size();
+        conn.resize(ConnVecSize);
+        if (ConnVecSize>0) {
+            for(GO i = 0;i<ConnVecSize;i++) {
+                conn[i] = ConnVec[i]->getSubdomainsVector();
+                for (int j = 0; j<conn[i].size(); j++) rep.insert(std::pair<GO,int>(conn.at(i).at(j),Connect->getEntityMap()->getComm()->getRank()));
+            }
+            for (auto& x: rep) {
+                entries.push_back(x.first);
+            }
+        }
+        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > GraphMap = Xpetra::MapFactory<LO,GO,NO>::Build(Xpetra::UseTpetra,-1,1,0,this->K_->getMap()->getComm());
+        
+        UN maxNumElements = -1;
+        UN numElementsLocal = entries.size();
+        reduceAll(*this->MpiComm_,Teuchos::REDUCE_MAX,numElementsLocal,Teuchos::ptr(&maxNumElements));
+        Teuchos::RCP<const Xpetra::Map<LO, GO, NO> > ColMap = Xpetra::MapFactory<LO,GO,NO>::createLocalMap(Xpetra::UseTpetra,maxNumElements,this->MpiComm_);
+        
+        Teuchos::Array<GO> col_vec(entries.size());
+        for (UN i = 0; i<entries.size(); i++) {
+            col_vec.at(i) = i;
+        }
+        //Build(Xpetra::UseTpetra,10,col1(),0,this->K_->getMap()->getComm());
+        //this->GraphEntriesList_ =  Teuchos::rcp(new Xpetra::TpetraCrsMatrix<GO>(GraphMap,10));
+        Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> >GraphEntriesList_ = Xpetra::CrsMatrixFactory<GO,LO,GO,NO>::Build(GraphMap,ColMap,numElementsLocal);
+        GraphEntriesList_->insertGlobalValues(GraphMap()->getComm()->getRank(),col_vec(),entries());
+        GraphEntriesList_->fillComplete();
+   
+        const size_t numMyElements = GraphMap->getNodeNumElements();
+        
+        Teuchos::ArrayRCP<long unsigned int> numRowEntries(GraphMap->getNodeNumElements());
+        for (UN i=0; i<GraphMap->getNodeNumElements(); i++) {
+            numRowEntries[i] = GraphEntriesList_->getNumEntriesInLocalRow(i);
+        }
+        
+        CrsGraphPtr theSubdomainConnectGraph_= Xpetra::CrsGraphFactory<LO,GO,NO>::Build(GraphMap,ColMap,numRowEntries.getConst());
+        Teuchos::ArrayView<const LO> in;
+        Teuchos::ArrayView<const GO> vals_graph;
+        for (size_t k = 0; k<numMyElements; k++) {
+            GO kg = GraphMap->getGlobalElement(k);
+            GraphEntriesList_->getGlobalRowView(kg,in,vals_graph);
+            Teuchos::Array<GO> vals(vals_graph);
+            theSubdomainConnectGraph_->insertGlobalIndices(kg,vals());
+        }
+        theSubdomainConnectGraph_->fillComplete();
+        return theSubdomainConnectGraph_;
+    }
+    
     template <class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::compute()
     {

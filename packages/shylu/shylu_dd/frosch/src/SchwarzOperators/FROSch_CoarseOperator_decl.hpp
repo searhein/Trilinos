@@ -81,6 +81,7 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::GOVec GOVec;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::GOVecPtr GOVecPtr;
+        typedef Teuchos::Array<GOVec> GOVec2D;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::LOVec LOVec;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::LOVecPtr2D LOVecPtr2D;
@@ -93,6 +94,18 @@ namespace FROSch {
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecView ConstSCVecView;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::CrsGraphPtr CrsGraphPtr;
+        
+        typedef typename SchwarzOperator<SC,LO,GO,NO>::EntitySetPtr EntitySetPtr;
+        typedef const EntitySetPtr EntitySetConstPtr;
+        typedef Teuchos::ArrayRCP<EntitySetPtr> EntitySetPtrVecPtr;
+        typedef const EntitySetPtrVecPtr EntitySetPtrConstVecPtr;
+
+        
+        typedef Teuchos::RCP<InterfaceEntity<SC,LO,GO,NO> > InterfaceEntityPtr;
+        typedef Teuchos::Array<InterfaceEntityPtr> InterfaceEntityPtrVec;
+        typedef Teuchos::ArrayRCP<InterfaceEntityPtr> InterfaceEntityPtrVecPtr;
+
+        
 
         CoarseOperator(CrsMatrixPtr k,
                        ParameterListPtr parameterList);
@@ -125,6 +138,8 @@ namespace FROSch {
                              MultiVector& y) const;
 
         virtual CoarseSpacePtr getCoarseSpace() const;
+        
+        CrsGraphPtr BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
         
     protected:
         
