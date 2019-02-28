@@ -131,6 +131,10 @@ namespace FROSch {
         theSubdomainConnectGraph_->fillComplete();
         return theSubdomainConnectGraph_;
     }
+   /* template <class SC,class LO,class GO, class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::CrsGraphPtr CoarseOperator<SC,LO,GO,NO>::BuildElementNodeList(){
+        
+    }*/
     
     template <class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::compute()
@@ -266,10 +270,20 @@ namespace FROSch {
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
         // Build CoarseMatrix_
+        
         CrsMatrixPtr k0 = buildCoarseMatrix();
         kRowMap_ = k0->getMap();
         // Build Map for the coarse solver
         buildCoarseSolveMap(k0);
+        GO matrixNumEntry = k0->getGlobalNumEntries();
+        GO numRows = k0->getGlobalNumRows();
+        GO numCols = k0->getGlobalNumCols();
+        if(this->Verbose_) {
+            std::cout<<"-------------------------\n";
+            std::cout<<"Global number of matrix entries: "<<matrixNumEntry<<std::endl;
+            std::cout<<"Matrix dimension: "<<numRows<<" x "<<numCols<<std::endl;
+            std::cout<<"-------------------------\n";
+        }
         
         //------------------------------------------------------------------------------------------------------------------------
         // Communicate coarse matrix
@@ -464,6 +478,7 @@ namespace FROSch {
 
             CoarseSolveComm_ = this->MpiComm_->split(!OnCoarseSolveComm_,this->MpiComm_->getRank());
             CoarseSolveMap_ = Xpetra::MapFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap()->lib(),-1,tmpCoarseMap->getNodeElementList(),0,CoarseSolveComm_);
+            CoarseSolveMap_->describe(*fancy,Teuchos::VERB_EXTREME);
             //Build RepeatedMap CoarseLevel------------------------------------------------------------------------------------
             //Repeated Map on first level needs to be correct--Build ElementNodeList
             if (DistributionList_->get("Use RepMap",false))

@@ -140,6 +140,7 @@ namespace FROSch {
         virtual CoarseSpacePtr getCoarseSpace() const;
         
         CrsGraphPtr BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
+       // Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> > BuildElementNodeList();
         
     protected:
         
