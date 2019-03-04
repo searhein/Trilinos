@@ -131,10 +131,10 @@ namespace FROSch {
         theSubdomainConnectGraph_->fillComplete();
         return theSubdomainConnectGraph_;
     }
-   /* template <class SC,class LO,class GO, class NO>
-    typename CoarseOperator<SC,LO,GO,NO>::CrsGraphPtr CoarseOperator<SC,LO,GO,NO>::BuildElementNodeList(){
+    template <class SC,class LO,class GO, class NO>
+    typename CoarseOperator<SC,LO,GO,NO>::GOCrsMatrixPtr CoarseOperator<SC,LO,GO,NO>::BuildElementNodeList(){
         
-    }*/
+    }
     
     template <class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::compute()

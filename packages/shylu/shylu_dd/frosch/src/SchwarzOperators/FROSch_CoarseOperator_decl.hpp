@@ -64,7 +64,8 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ConstMapPtr ConstMapPtr;
 
         typedef typename SchwarzOperator<SC,LO,GO,NO>::CrsMatrixPtr CrsMatrixPtr;
-        
+        typedef typename Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> >GOCrsMatrixPtr;
+
         typedef typename SchwarzOperator<SC,LO,GO,NO>::MultiVector MultiVector;
         typedef typename SchwarzOperator<SC,LO,GO,NO>::MultiVectorPtr MultiVectorPtr;
         
@@ -140,7 +141,7 @@ namespace FROSch {
         virtual CoarseSpacePtr getCoarseSpace() const;
         
         CrsGraphPtr BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
-       // Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> > BuildElementNodeList();
+        GOCrsMatrixPtr BuildElementNodeList();
         
     protected:
         
