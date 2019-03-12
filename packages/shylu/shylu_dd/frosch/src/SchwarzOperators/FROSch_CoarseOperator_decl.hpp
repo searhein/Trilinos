@@ -140,7 +140,6 @@ namespace FROSch {
 
         virtual CoarseSpacePtr getCoarseSpace() const;
         
-        CrsGraphPtr BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
         
         
     protected:
@@ -153,8 +152,8 @@ namespace FROSch {
         
         virtual int buildCoarseSolveMap(CrsMatrixPtr &k0);
         virtual int buildElementNodeList(MapPtr &tmpCoarseMap);
-        virtual int buildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_,MapPtr &tmpCoarseMap);
-        
+        virtual int buildGraphEntries(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
+        virtual int buildConnectGraph();
         CommPtr CoarseSolveComm_;
         
         bool OnCoarseSolveComm_;

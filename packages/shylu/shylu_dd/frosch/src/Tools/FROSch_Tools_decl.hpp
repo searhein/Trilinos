@@ -186,6 +186,9 @@ namespace FROSch {
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
     template <class SC, class LO,class GO,class NO>
     int RepartionMatrixZoltan2(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &crsMatrix, Teuchos::RCP<Teuchos::ParameterList> parameterList);
+    template <class SC, class LO,class GO,class NO>
+    int RepartitionMatrixFromRepMap(Teuchos::RCP<Xpetra::Matrix<SC,LO,GO,NO> > &crsMatrix,
+                                    Teuchos::RCP<Teuchos::ParameterList> parameterList, Teuchos::RCP<Xpetra::Map<LO,GO,NO> > &RepMap);
     
    
     template <class SC, class LO, class GO, class NO>
