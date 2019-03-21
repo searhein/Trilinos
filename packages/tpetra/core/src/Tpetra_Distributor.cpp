@@ -62,6 +62,9 @@ namespace Tpetra {
       else if (sendType == DISTRIBUTOR_SSEND) {
         return "Ssend";
       }
+      else if (sendType == DISTRIBUTOR_PERSISTENT) {
+        return "Persistent";
+      }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument, "Invalid "
           "EDistributorSendType enum value " << sendType << ".");
@@ -98,6 +101,7 @@ namespace Tpetra {
     sendTypes.push_back ("Rsend");
     sendTypes.push_back ("Send");
     sendTypes.push_back ("Ssend");
+    sendTypes.push_back ("Persistent");
     return sendTypes;
   }
 
@@ -164,6 +168,8 @@ namespace Tpetra {
   {
     TEUCHOS_ASSERT( ! out_.is_null () );
 
+    persistentRequests_.resize (0);
+
     this->setParameterList (plist); // sets verbose_ via Behavior
 #ifdef TPETRA_DISTRIBUTOR_TIMERS
     makeTimers ();
@@ -218,6 +224,8 @@ namespace Tpetra {
     using Teuchos::rcp;
 
     TEUCHOS_ASSERT( ! out_.is_null () );
+
+    persistentRequests_.resize (0);
 
     RCP<const ParameterList> rhsList = distributor.getParameterList ();
     RCP<ParameterList> newList = rhsList.is_null () ? Teuchos::null :
@@ -371,6 +379,7 @@ namespace Tpetra {
     sendTypeEnums.push_back (Details::DISTRIBUTOR_RSEND);
     sendTypeEnums.push_back (Details::DISTRIBUTOR_SEND);
     sendTypeEnums.push_back (Details::DISTRIBUTOR_SSEND);
+    sendTypeEnums.push_back (Details::DISTRIBUTOR_PERSISTENT);
 
     RCP<ParameterList> plist = parameterList ("Tpetra::Distributor");
     plist->set ("Barrier between receives and sends", barrierBetween,
@@ -541,8 +550,13 @@ namespace Tpetra {
       std::ostringstream os;
       os << myRank << ": doWaits: # reqs = "
          << requests_.size () << endl;
+      os << myRank << ": doWaits: # persistentReqs = "
+         << persistentRequests_.size () << endl;
       *out_ << os.str ();
     }
+
+    if (persistentRequests_.size() > 0)
+      waitAll(*comm_, persistentRequests_(), /*releaseRequests=*/false);
 
     if (requests_.size() > 0) {
       waitAll (*comm_, requests_());
@@ -588,6 +602,12 @@ namespace Tpetra {
   void Distributor::doReverseWaits() {
     // call doWaits() on the reverse Distributor, if it exists
     if (! reverseDistributor_.is_null()) {
+      if (verbose_) {
+        const int myRank = comm_->getRank ();
+        std::ostringstream os;
+        os << myRank << ": doWaits reverse" << std::endl;
+        *out_ << os.str ();
+      }
       reverseDistributor_->doWaits();
     }
   }
