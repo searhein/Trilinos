@@ -113,6 +113,10 @@ APPEND_SET(HEADERS
   Tools/FROSch_SubdomainSolver_def.hpp
   Tools/FROSch_Tools_decl.hpp
   Tools/FROSch_Tools_def.hpp
+  Tools/FROSch_MLSubSolve_decl.hpp
+  Tools/FROSch_MLSubSolve_def.hpp
+  Tools/FROSch_MLTools_decl.hpp
+  Tools/FROSch_MLTools_def.hpp
 )
 
 # Set sources

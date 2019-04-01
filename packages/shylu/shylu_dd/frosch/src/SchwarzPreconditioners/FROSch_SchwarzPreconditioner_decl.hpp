@@ -52,6 +52,7 @@
 #include <FROSch_RGDSWCoarseOperator_def.hpp>
 #include <FROSch_IPOUHarmonicCoarseOperator_def.hpp>
 
+
 namespace FROSch {        
     
     template <class SC = Xpetra::Operator<>::scalar_type,

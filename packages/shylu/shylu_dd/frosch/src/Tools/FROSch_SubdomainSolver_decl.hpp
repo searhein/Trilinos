@@ -46,6 +46,7 @@
 
 #include <ShyLU_DDFROSch_config.h>
 
+
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
 #include "Epetra_LinearProblem.h"
 #endif
@@ -103,6 +104,8 @@
 #include "Thyra_MultiVectorStdOps.hpp"
 //Stratimikos
 #include "Stratimikos_DefaultLinearSolverBuilder.hpp"
+
+
 #endif
 
 

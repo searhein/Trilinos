@@ -43,6 +43,8 @@
 #define _FROSCH_COARSEOPERATOR_DEF_HPP
 
 #include <FROSch_CoarseOperator_decl.hpp>
+
+
 namespace FROSch {
     
     template<class SC,class LO,class GO,class NO>
@@ -704,6 +706,10 @@ namespace FROSch {
                         
                         CoarseSolveRepeatedMap_ = FROSch::BuildRepMap_Zoltan<SC,LO,GO,NO>(SubdomainConnectGraph_, ElementNodeList_, DistributionList_,SubdomainConnectGraph_->getMap()->getComm());
                         // CoarseSolveRepeatedMap_->describe(*fancy,Teuchos::VERB_EXTREME);
+						
+						
+
+
                     }
                 }
             }

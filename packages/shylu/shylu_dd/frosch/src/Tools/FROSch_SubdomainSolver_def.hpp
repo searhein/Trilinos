@@ -182,9 +182,11 @@ namespace FROSch {
 
         else if(!ParameterList_->get("SolverType","Amesos").compare("Thyra")){
             Teuchos::RCP<Xpetra::CrsMatrixWrap<SC,LO,GO> > K_wrap = Teuchos::rcp_dynamic_cast<Xpetra::CrsMatrixWrap<SC,LO,GO> >(K_);
+
             Teuchos::RCP<const Thyra::LinearOpBase<SC> > K_thyra = Xpetra::ThyraUtils<SC,LO,GO,NO>::toThyra(K_wrap->getCrsMatrix());
             Stratimikos::DefaultLinearSolverBuilder linearSolverBuilder;
             ParameterListPtr solverParameterList = sublist(ParameterList_,"Thyra");
+
             linearSolverBuilder.setParameterList(solverParameterList);
             Teuchos::RCP<Thyra::LinearOpWithSolveFactoryBase<SC> > lowsfactory = linearSolverBuilder.createLinearSolveStrategy("");
             lowsfactory->setVerbLevel(Teuchos::VERB_NONE);
@@ -424,7 +426,7 @@ namespace FROSch {
             //Solve Problem
             Thyra::SolveStatus<SC> status  = Thyra::solve<SC> (*ThyraSolver_, Thyra::NOTRANS, *thyraB, thyrax.ptr());
             const Teuchos::RCP<const Teuchos::Comm<int> > theComm = x.getMap()->getComm();
-           
+
             Teuchos::RCP<const Xpetra::EpetraMapT<GO,NO> > eDomainM = Teuchos::rcp_dynamic_cast<const Xpetra::EpetraMapT<GO,NO> >(K_->getDomainMap());
             const Epetra_Map epetraMap = eDomainM->getEpetra_Map();
             Teuchos::RCP<const Epetra_MultiVector> YY;
