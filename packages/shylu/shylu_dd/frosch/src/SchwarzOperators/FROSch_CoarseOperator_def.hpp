@@ -498,7 +498,10 @@ namespace FROSch {
                     CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
                 }
                 else{
+                	  CoarseSolveComm_->barrier();CoarseSolveComm_->barrier();CoarseSolveComm_->barrier();
+                	  if(CoarseSolveComm_->getRank() == 0) std::cout<<"Before\n";
                     CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+                    std::cout<<"After reset\n";
                 }
 
                 CoarseSolver_->initialize();
@@ -668,13 +671,12 @@ namespace FROSch {
                     
             if(OnCoarseSolveComm_){
                 CoarseSolveRepeatedMap_ = FROSch::BuildRepMap_Zoltan<SC,LO,GO,NO>(SubdomainConnectGraph_,ElementNodeList_, DistributionList_,CoarseSolveComm_);
-                       
                 UniqueMap = FROSch::BuildUniqueMap<LO,GO,NO>(CoarseSolveRepeatedMap_);
                 uniEle = UniqueMap->getNodeElementList();
             }
 
-				Teuchos::RCP<Teuchos::ParameterList> pList =  Teuchos::sublist(this->ParameterList_,"CoarseSolver");
-				pList->set("Repeated Map",CoarseSolveRepeatedMap_);
+				Teuchos::RCP<Teuchos::ParameterList> pList = sublist(this->ParameterList_,"CoarseSolver");
+				sublist(this->ParameterList_,"CoarseSolver")->set("Repeated Map",CoarseSolveRepeatedMap_);
             Teuchos::RCP<Xpetra::Map<LO,GO,NO> > tmpMap = Xpetra::MapFactory<LO,GO,NO>::Build(Xpetra::UseTpetra,-1,uniEle,0,this->MpiComm_);;
                     //tmpMap->describe(*fancy,Teuchos::VERB_EXTREME);
             CrsMatrixPtr k0Unique = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(tmpMap,k0->getGlobalMaxNumRowEntries());

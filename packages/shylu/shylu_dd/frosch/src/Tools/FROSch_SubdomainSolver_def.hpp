@@ -197,18 +197,31 @@ namespace FROSch {
 #endif
 #ifdef FROSch_MultiLevel        
         else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")) {
+        	Teuchos::RCP< const Teuchos::Comm< int > > TC = K_->getMap()->getComm();
         	ParameterListPtr solverParameterList = sublist(ParameterList_,"GDSWPC");
+        	TC->barrier();
+        	if(TC->getRank()==0) std::cout<<"test1\n";
          Teuchos::RCP<Xpetra::Map<LO,GO,NO> > RepeatedMap = Teuchos::null;
-         if (solverParameterList->isParameter("Repeated Map")) {
-              RepeatedMap = ExtractPtrFromParameterList<Xpetra::Map<LO,GO,NO> >(*ParameterList_,"Repeated Map");
+         if (ParameterList_->isParameter("Repeated Map")) {
+         	TC->barrier();
+        	   if(TC->getRank()==0) std::cout<<"Have Parameter\n";
+             RepeatedMap = ExtractPtrFromParameterList<Xpetra::Map<LO,GO,NO> >(*ParameterList_,"Repeated Map");
          }
          Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > CoordinatesList = Teuchos::null;
-         if(solverParameterList->isParameter("Coordinates List")){
+         if(ParameterList_->isParameter("Coordinates List")){
               CoordinatesList = ExtractPtrFromParameterList<Xpetra::MultiVector<SC,LO,GO,NO> >(*ParameterList_,"Coordinates List");
          }
+         	TC->barrier();
+        	if(TC->getRank()==0) std::cout<<"test2\n";
          DofOrdering dofOrdering;
+         	TC->barrier();
+        	if(TC->getRank()==0) std::cout<<"test3\n";
         	GP = Teuchos::rcp(new GDSWPreconditioner<SC,LO,GO,NO>(K_,solverParameterList));
+        		TC->barrier();
+        	if(TC->getRank()==0) std::cout<<"test4\n";
         	GP->initialize(solverParameterList->get("Dimension",3),solverParameterList->get("DofsPerNode",1),dofOrdering,solverParameterList->get("Overlap",1),RepeatedMap,CoordinatesList);
+        		TC->barrier();
+        	if(TC->getRank()==0) std::cout<<"test5\n";
         }
 #endif
         else {
