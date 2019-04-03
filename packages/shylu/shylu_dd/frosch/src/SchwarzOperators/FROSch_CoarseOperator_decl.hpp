@@ -77,7 +77,7 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::CoarseSpacePtr CoarseSpacePtr;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::SubdomainSolverPtr SubdomainSolverPtr;
-        typedef typename SchwarzOperator<SC,LO,GO,NO>::MLSubSolverPtr MLSubSolverPtr;
+        
         typedef typename SchwarzOperator<SC,LO,GO,NO>::UN UN;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::GOVec GOVec;
@@ -140,8 +140,7 @@ namespace FROSch {
 
         virtual CoarseSpacePtr getCoarseSpace() const;
         
-        CrsGraphPtr BuildConnectivityGraph(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
-        GOCrsMatrixPtr BuildElementNodeList();
+        
         
     protected:
         
@@ -152,8 +151,9 @@ namespace FROSch {
         CrsMatrixPtr buildCoarseMatrix();
         
         virtual int buildCoarseSolveMap(CrsMatrixPtr &k0);
-        
-        
+        virtual int buildElementNodeList(MapPtr &tmpCoarseMap);
+        virtual int buildGraphEntries(Teuchos::RCP<DDInterface<SC,LO,GO,NO> > theDDInterface_);
+        virtual int buildConnectGraph();
         CommPtr CoarseSolveComm_;
         
         bool OnCoarseSolveComm_;
@@ -171,7 +171,7 @@ namespace FROSch {
         GOVecPtr BlockCoarseDimension_;
         
         SubdomainSolverPtr CoarseSolver_;
-        MLSubSolverPtr MLSolver_;
+        
         ParameterListPtr DistributionList_;
         
         ExporterPtrVecPtr CoarseSolveExporters_;

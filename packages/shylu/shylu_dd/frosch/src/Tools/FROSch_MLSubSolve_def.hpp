@@ -44,7 +44,8 @@
 
 #ifdef HAVE_SHYLU_DDFROSCH_STRATIMIKOS
 
-#include <FROSch_MLSubSolve_decl.hpp
+#include <FROSch_MLSubSolve_decl.hpp>
+
 	template<class SC,class LO,class GO,class NO>
      MLSubSolver<SC,LO,GO,NO>::MLSubSolver(CrsMatrixPtr k,
                                                   ParameterListPtr parameterList,

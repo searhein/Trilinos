@@ -62,18 +62,19 @@
 #include <FROSch_LocalPartitionOfUnityBasis_def.hpp>
 
 #include <FROSch_SubdomainSolver_def.hpp>
-//#include <FROSch_MLSubSolve_def.hpp>
 
 
 // TODO: Auf const überprüfen
 // TODO: #ifndef überprüfen ??????
 namespace FROSch {
-     template <class SC,
+    template <class SC,
     class LO ,
     class GO ,
     class NO >
 	class MLSubSolver;
-    class Solver;
+
+	
+	class Solver;
     
     template <class SC = Xpetra::Operator<>::scalar_type,
               class LO = typename Xpetra::Operator<SC>::local_ordinal_type,
@@ -129,7 +130,7 @@ namespace FROSch {
         
         typedef Teuchos::RCP<SubdomainSolver<SC,LO,GO,NO> > SubdomainSolverPtr;
         typedef Teuchos::RCP<MLSubSolver<SC,LO,GO,NO> > MLSubSolverPtr;
-		
+	
         typedef unsigned UN;
         typedef Teuchos::Array<UN> UNVec;
         typedef Teuchos::ArrayRCP<UN> UNVecPtr;

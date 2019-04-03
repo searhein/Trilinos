@@ -515,40 +515,7 @@ namespace FROSch {
                 }
                 if (this->ParameterList_->get("Use RepMap",false)) {
                     if (this->K_->getMap()->lib() == Xpetra::UseTpetra) {
-                        Teuchos::Array<GO> entries;
-                        std::map<GO,int> rep;
-                        GOVec2D conn;
-                        DDInterface_->identifyConnectivityEntities();
-                        EntitySetConstPtr Connect = DDInterface_->getConnectivityEntities();
-                        Connect->buildEntityMap(DDInterface_->getNodesMap());
-                        InterfaceEntityPtrVec ConnVec = Connect->getEntityVector();
-                        GO ConnVecSize = ConnVec.size();
-                        conn.resize(ConnVecSize);
-                        if (ConnVecSize>0) {
-                            for(GO i = 0;i<ConnVecSize;i++) {
-                                conn[i] = ConnVec[i]->getSubdomainsVector();
-                                for (int j = 0; j<conn[i].size(); j++) rep.insert(std::pair<GO,int>(conn.at(i).at(j),Connect->getEntityMap()->getComm()->getRank()));
-                            }
-                            for (auto& x: rep) {
-                                entries.push_back(x.first);
-                            }
-                        }
-                        MapPtr GraphMap = Xpetra::MapFactory<LO,GO,NO>::Build(Xpetra::UseTpetra,-1,1,0,this->K_->getMap()->getComm());
-                        
-                        UN maxNumElements = -1;
-                        UN numElementsLocal = entries.size();
-                        reduceAll(*this->MpiComm_,Teuchos::REDUCE_MAX,numElementsLocal,Teuchos::ptr(&maxNumElements));
-                        Teuchos::RCP<const Xpetra::Map<LO, GO, NO> > ColMap = Xpetra::MapFactory<LO,GO,NO>::createLocalMap(Xpetra::UseTpetra,maxNumElements,this->MpiComm_);
-                        
-                        Teuchos::Array<GO> col_vec(entries.size());
-                        for (UN i = 0; i<entries.size(); i++) {
-                            col_vec.at(i) = i;
-                        }
-                        //Build(Xpetra::UseTpetra,10,col1(),0,this->K_->getMap()->getComm());
-                        //this->GraphEntriesList_ =  Teuchos::rcp(new Xpetra::TpetraCrsMatrix<GO>(GraphMap,10));
-                        this->GraphEntriesList_ = Xpetra::CrsMatrixFactory<GO,LO,GO,NO>::Build(GraphMap,ColMap,numElementsLocal);
-                        this->GraphEntriesList_->insertGlobalValues(GraphMap()->getComm()->getRank(),col_vec(),entries());
-                        this->GraphEntriesList_->fillComplete();
+                        this->buildGraphEntries(DDInterface_);
                     }
                 }
                 

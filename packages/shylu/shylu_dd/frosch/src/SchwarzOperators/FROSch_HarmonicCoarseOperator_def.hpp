@@ -41,7 +41,7 @@
 
 #ifndef _FROSCH_HARMONICCOARSEOPERATOR_DEF_HPP
 #define _FROSCH_HARMONICCOARSEOPERATOR_DEF_HPP
-
+#include <FROSch_SubdomainSolver_decl.hpp>
 #include <FROSch_HarmonicCoarseOperator_decl.hpp>
 
 namespace FROSch {

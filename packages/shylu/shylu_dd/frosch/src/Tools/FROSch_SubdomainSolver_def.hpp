@@ -43,6 +43,7 @@
 #define _FROSCH_SUBDOMAINSOLVER_DEF_hpp
 
 #include <FROSch_SubdomainSolver_decl.hpp>
+#include <Stratimikos_FROSchXpetra.hpp>
 
 namespace FROSch {
 
@@ -186,13 +187,29 @@ namespace FROSch {
             Teuchos::RCP<const Thyra::LinearOpBase<SC> > K_thyra = Xpetra::ThyraUtils<SC,LO,GO,NO>::toThyra(K_wrap->getCrsMatrix());
             Stratimikos::DefaultLinearSolverBuilder linearSolverBuilder;
             ParameterListPtr solverParameterList = sublist(ParameterList_,"Thyra");
-
+		    //Stratimikos::enableFROSch<LO,GO,NO> (linearSolverBuilder);
             linearSolverBuilder.setParameterList(solverParameterList);
             Teuchos::RCP<Thyra::LinearOpWithSolveFactoryBase<SC> > lowsfactory = linearSolverBuilder.createLinearSolveStrategy("");
             lowsfactory->setVerbLevel(Teuchos::VERB_NONE);
             ThyraSolver_ = Thyra::linearOpWithSolve(*lowsfactory,K_thyra);
         }
 #endif
+#endif
+#ifdef FROSch_MultiLevel        
+        else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")) {
+        	ParameterListPtr solverParameterList = sublist(ParameterList_,"GDSWPC");
+         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > RepeatedMap = Teuchos::null;
+         if (solverParameterList->isParameter("Repeated Map")) {
+              RepeatedMap = ExtractPtrFromParameterList<Xpetra::Map<LO,GO,NO> >(*ParameterList_,"Repeated Map");
+         }
+         Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > CoordinatesList = Teuchos::null;
+         if(solverParameterList->isParameter("Coordinates List")){
+              CoordinatesList = ExtractPtrFromParameterList<Xpetra::MultiVector<SC,LO,GO,NO> >(*ParameterList_,"Coordinates List");
+         }
+         DofOrdering dofOrdering;
+        	GP = Teuchos::rcp(new GDSWPreconditioner<SC,LO,GO,NO>(K_,solverParameterList));
+        	GP->initialize(solverParameterList->get("Dimension",3),solverParameterList->get("DofsPerNode",1),dofOrdering,solverParameterList->get("Overlap",1),RepeatedMap,CoordinatesList);
+        }
 #endif
         else {
             FROSCH_ASSERT(false,"SolverType unknown...");
@@ -225,6 +242,9 @@ namespace FROSch {
 #endif
 #ifdef HAVE_SHYLU_DDFROSCH_STRATIMIKOS
         ThyraSolver_.reset();
+#endif
+#ifdef FROSch_MultiLevel
+		 GP.reset();
 #endif
     }
 
@@ -266,7 +286,13 @@ namespace FROSch {
             IsComputed_ = false;
         }
 #endif
-            else {
+#ifdef FROSch_MultiLevel        
+        else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")){
+        	 	IsInitialized_ = true;
+            IsComputed_ = false;
+		}
+#endif
+      else {
             FROSCH_ASSERT(false,"SolverType unknown...");
         }
         return 0;
@@ -326,7 +352,14 @@ namespace FROSch {
         }else if (!ParameterList_->get("SolverType","Amesos").compare("Thyra")) {
              IsComputed_ = true;
 #endif
-        } else {
+        } 
+#ifdef FROSch_MultiLevel        
+        else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")) {
+        	 GP->compute();
+        	 IsComputed_ = true;
+        }
+#endif  
+       else {
             FROSCH_ASSERT(false,"SolverType unknown...");
         }
         return 0;
@@ -440,7 +473,15 @@ namespace FROSch {
             }
 #endif
 #endif
-        }else {
+        }
+#ifdef FROSch_MultiLevel        
+        else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")){
+        	yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
+        	GP->apply(x,*yTmp,Teuchos::NO_TRANS);
+        	y = *yTmp;
+        }
+#endif
+        else {
             FROSCH_ASSERT(false,"SolverType unknown...");
         }
         y.update(alpha,*yTmp,beta);

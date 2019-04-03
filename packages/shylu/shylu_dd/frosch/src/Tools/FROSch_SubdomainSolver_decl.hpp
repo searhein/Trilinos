@@ -104,19 +104,26 @@
 #include "Thyra_MultiVectorStdOps.hpp"
 //Stratimikos
 #include "Stratimikos_DefaultLinearSolverBuilder.hpp"
-
-
+#include <Stratimikos_FROSchXpetra.hpp>
 #endif
-
+#define FROSch_MultiLevel
 
 namespace FROSch {
 
-    template <class SC,
-    class LO ,
-    class GO ,
-    class NO >
-    class OneLevelPreconditioner;
-
+   template<class SC,
+   class LO,
+   class GO,
+   class NO>
+   class OneLevelPreconditioner;   
+   
+   template<class SC,
+   class LO,
+   class GO,
+   class NO>
+   class GDSWPreconditioner;
+   
+   
+	
     template <class SC = typename Xpetra::Operator<>::scalar_type,
     class LO = typename Xpetra::Operator<SC>::local_ordinal_type,
     class GO = typename Xpetra::Operator<SC, LO>::global_ordinal_type,
@@ -302,6 +309,11 @@ namespace FROSch {
 #ifdef HAVE_SHYLU_DDFROSCH_STRATIMIKOS
          ThyraSolveBasePtr ThyraSolver_;
 #endif
+
+#ifdef FROSch_MultiLevel
+      Teuchos::RCP<GDSWPreconditioner<SC,LO,GO,NO> > GP;
+#endif
+
         
         
         

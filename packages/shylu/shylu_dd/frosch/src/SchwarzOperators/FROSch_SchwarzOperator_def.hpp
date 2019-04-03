@@ -43,6 +43,8 @@
 #define _FROSCH_SCHWARZOPERATOR_DEF_HPP
 
 #include <FROSch_SchwarzOperator_decl.hpp>
+#include <FROSch_SubdomainSolver_decl.hpp>
+#include <FROSch_SubdomainSolver_def.hpp>
 
 namespace FROSch {
     

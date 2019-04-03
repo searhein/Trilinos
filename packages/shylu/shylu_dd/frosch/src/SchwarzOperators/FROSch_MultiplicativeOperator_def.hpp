@@ -41,7 +41,7 @@
 
 #ifndef _FROSCH_MULTIPLICATIVEOPERATOR_DEF_HPP
 #define _FROSCH_MULTIPLICATIVEOPERATOR_DEF_HPP
-
+#include <FROSch_SubdomainSolver_decl.hpp>
 #include <FROSch_MultiplicativeOperator_decl.hpp>
 
 namespace FROSch {
