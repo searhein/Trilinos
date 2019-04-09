@@ -1053,6 +1053,7 @@ namespace MueLu {
       MUELU_TEST_AND_SET_PARAM_2LIST(paramList, defaultList, "rap: shift", double, RAPparams);
       MUELU_TEST_AND_SET_PARAM_2LIST(paramList, defaultList, "rap: shift diagonal M", bool, RAPparams);
       MUELU_TEST_AND_SET_PARAM_2LIST(paramList, defaultList, "rap: shift low storage", bool, RAPparams);
+      MUELU_TEST_AND_SET_PARAM_2LIST(paramList, defaultList, "rap: shift array", Teuchos::Array<double>, RAPparams);
 
     } else {
       RAP = rcp(new RAPFactory());
@@ -1303,6 +1304,7 @@ namespace MueLu {
       repartheurFactory->SetParameterList(repartheurParams);
       repartheurFactory->SetFactory("A",         manager.GetFactory("A"));
       manager.SetFactory("number of partitions", repartheurFactory);
+      manager.SetFactory("repartition: heuristic target rows per process", repartheurFactory);
 
       // Partitioner
       RCP<Factory> partitioner;
@@ -1332,6 +1334,8 @@ namespace MueLu {
         RCP<const ParameterList> partpartParams = rcp(new ParameterList(paramList.sublist("repartition: params", false)));
         partParams.set("ParameterList", partpartParams);
         partitioner->SetParameterList(partParams);
+        partitioner->SetFactory("repartition: heuristic target rows per process",
+                                manager.GetFactory("repartition: heuristic target rows per process"));
 #else
         throw Exceptions::RuntimeError("Zoltan2 interface is not available");
 #endif
