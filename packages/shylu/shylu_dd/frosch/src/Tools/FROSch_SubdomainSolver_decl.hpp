@@ -96,7 +96,7 @@
 #include <Thyra_VectorSpaceBase_decl.hpp>
 #include <Thyra_TpetraMultiVector_decl.hpp>
 #include <Thyra_TpetraMultiVector_def.hpp>
-#include "Thyra_Amesos2LinearOpWithSolveFactory.hpp"
+//#include "Thyra_Amesos2LinearOpWithSolveFactory.hpp"
 #include "Thyra_TpetraVectorSpace.hpp"
 #include "Thyra_TpetraLinearOp.hpp"
 #include "Thyra_LinearOpTester.hpp"
@@ -121,6 +121,12 @@ namespace FROSch {
    class GO,
    class NO>
    class GDSWPreconditioner;
+   
+    template<class SC,
+   class LO,
+   class GO,
+   class NO>
+   class RGDSWPreconditioner;
    
    
 	
@@ -312,6 +318,7 @@ namespace FROSch {
 
 #ifdef FROSch_MultiLevel
       Teuchos::RCP<GDSWPreconditioner<SC,LO,GO,NO> > GP;
+      Teuchos::RCP<RGDSWPreconditioner<SC,LO,GO,NO> > RGP;
 #endif
 
         

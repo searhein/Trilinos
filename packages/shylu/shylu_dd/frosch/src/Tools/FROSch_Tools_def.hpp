@@ -215,7 +215,7 @@ namespace FROSch {
        
         
         //Repeated Element List
-        Teuchos::RCP<const Xpetra::Map<GO,LO,NO> > EleRepMap = ReGraph->getColMap();
+        Teuchos::RCP<const Xpetra::Map<LO,GO,NO> > EleRepMap = ReGraph->getColMap();
         //------------------------------Build NodeRepMap-----------------------------
         Teuchos::RCP<Xpetra::Import<LO,GO,NO> > scatter = Xpetra::ImportFactory<LO,GO,NO>::Build(Xgraph->getRowMap(),ReGraph->getColMap());
         //Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> > BB = Xpetra::CrsMatrixFactory<GO,LO,GO,NO>::Build(B,*scatter);
@@ -1002,7 +1002,7 @@ namespace FROSch {
     }
 #endif
 
-    void ThrowErrorMissingPackage(const std::string& froschObj, const std::string& packageName)
+   /* void ThrowErrorMissingPackage(const std::string& froschObj, const std::string& packageName)
     {
       // Create the error message
       std::stringstream errMsg;
@@ -1014,7 +1014,7 @@ namespace FROSch {
       FROSCH_ASSERT(false, errMsg.str());
 
       return;
-    }
+    }*/
 } // namespace FROSch
 
 #endif

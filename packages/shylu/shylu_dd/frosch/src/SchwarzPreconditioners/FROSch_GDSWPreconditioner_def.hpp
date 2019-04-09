@@ -193,25 +193,14 @@ namespace FROSch {
                                                     MapPtr repeatedMap,
                                                     MultiVectorPtr &nodeList)
     {
-    	  if(this->Verbose_)std::cout<<"In Here\n";
+
         FROSCH_ASSERT(dofOrdering == NodeWise || dofOrdering == DimensionWise,"ERROR: Specify a valid DofOrdering.");
         int ret = 0;
         if (0>this->FirstLevelOperator_->initialize(overlap,repeatedMap)) ret -= 1;
-        this->MpiComm_->barrier(); this->MpiComm_->barrier(); this->MpiComm_->barrier();
-        if(this->Verbose_){
-        	 //std::cout<<"GP1\n"; 
-       	 std::cout<<"NumProcs: "<<repeatedMap->getComm()->getRank()<<std::endl;
-        }
         MapPtr repeatedNodesMap;
         MapPtrVecPtr repeatedDofMaps;
-        this->MpiComm_->barrier(); this->MpiComm_->barrier(); this->MpiComm_->barrier();
-        if(this->Verbose_)std::cout<<"GP2\n";
         if (0>BuildDofMaps(repeatedMap,dofsPerNode,dofOrdering,repeatedNodesMap,repeatedDofMaps)) ret -= 100;
-         this->MpiComm_->barrier(); this->MpiComm_->barrier(); this->MpiComm_->barrier();
-        if(this->Verbose_)std::cout<<"GP3\n";
         if (0>CoarseLevelOperator_->initialize(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps,nodeList)) ret -=10;
-         this->MpiComm_->barrier(); this->MpiComm_->barrier(); this->MpiComm_->barrier();
-        if(this->Verbose_)std::cout<<"GP4\n";
         return ret;
     }
     

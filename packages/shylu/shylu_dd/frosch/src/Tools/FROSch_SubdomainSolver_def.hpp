@@ -199,29 +199,36 @@ namespace FROSch {
         else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")) {
         	Teuchos::RCP< const Teuchos::Comm< int > > TC = K_->getMap()->getComm();
         	ParameterListPtr solverParameterList = sublist(ParameterList_,"GDSWPC");
-        	TC->barrier();
-        	if(TC->getRank()==0) std::cout<<"test1\n";
+      
          Teuchos::RCP<Xpetra::Map<LO,GO,NO> > RepeatedMap = Teuchos::null;
          if (ParameterList_->isParameter("Repeated Map")) {
-         	TC->barrier();
-        	   if(TC->getRank()==0) std::cout<<"Have Parameter\n";
              RepeatedMap = ExtractPtrFromParameterList<Xpetra::Map<LO,GO,NO> >(*ParameterList_,"Repeated Map");
          }
          Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > CoordinatesList = Teuchos::null;
          if(ParameterList_->isParameter("Coordinates List")){
               CoordinatesList = ExtractPtrFromParameterList<Xpetra::MultiVector<SC,LO,GO,NO> >(*ParameterList_,"Coordinates List");
-         }
-         	TC->barrier();
-        	if(TC->getRank()==0) std::cout<<"test2\n";
+         }      	
          DofOrdering dofOrdering;
-         	TC->barrier();
-        	if(TC->getRank()==0) std::cout<<"test3\n";
-        	GP = Teuchos::rcp(new GDSWPreconditioner<SC,LO,GO,NO>(K_,solverParameterList));
-        		TC->barrier();
-        	if(TC->getRank()==0) std::cout<<"test4\n";
+        	GP = Teuchos::rcp(new GDSWPreconditioner<SC,LO,GO,NO>(K_,solverParameterList)); 		
         	GP->initialize(solverParameterList->get("Dimension",3),solverParameterList->get("DofsPerNode",1),dofOrdering,solverParameterList->get("Overlap",1),RepeatedMap,CoordinatesList);
-        		TC->barrier();
-        	if(TC->getRank()==0) std::cout<<"test5\n";
+        	
+        }
+         else if(!ParameterList_->get("SolverType","Amesos").compare("RGDSWPreconditioner")) {
+        	Teuchos::RCP< const Teuchos::Comm< int > > TC = K_->getMap()->getComm();
+        	ParameterListPtr solverParameterList = sublist(ParameterList_,"RGDSWPC");
+      
+         Teuchos::RCP<Xpetra::Map<LO,GO,NO> > RepeatedMap = Teuchos::null;
+         if (ParameterList_->isParameter("Repeated Map")) {
+             RepeatedMap = ExtractPtrFromParameterList<Xpetra::Map<LO,GO,NO> >(*ParameterList_,"Repeated Map");
+         }
+         Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > CoordinatesList = Teuchos::null;
+         if(ParameterList_->isParameter("Coordinates List")){
+              CoordinatesList = ExtractPtrFromParameterList<Xpetra::MultiVector<SC,LO,GO,NO> >(*ParameterList_,"Coordinates List");
+         }      	
+         DofOrdering dofOrdering;
+        	RGP = Teuchos::rcp(new RGDSWPreconditioner<SC,LO,GO,NO>(K_,solverParameterList)); 		
+         RGP->initialize(solverParameterList->get("Dimension",3),solverParameterList->get("DofsPerNode",1),dofOrdering,solverParameterList->get("Overlap",1),RepeatedMap,CoordinatesList);
+        	
         }
 #endif
         else {
@@ -258,6 +265,7 @@ namespace FROSch {
 #endif
 #ifdef FROSch_MultiLevel
 		 GP.reset();
+		 RGP.reset();
 #endif
     }
 
@@ -301,6 +309,10 @@ namespace FROSch {
 #endif
 #ifdef FROSch_MultiLevel        
         else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")){
+        	 	IsInitialized_ = true;
+            IsComputed_ = false;
+		}
+		 else if(!ParameterList_->get("SolverType","Amesos").compare("RGDSWPreconditioner")){
         	 	IsInitialized_ = true;
             IsComputed_ = false;
 		}
@@ -369,6 +381,10 @@ namespace FROSch {
 #ifdef FROSch_MultiLevel        
         else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")) {
         	 GP->compute();
+        	 IsComputed_ = true;
+        }
+         else if(!ParameterList_->get("SolverType","Amesos").compare("RGDSWPreconditioner")) {
+        	 RGP->compute();
         	 IsComputed_ = true;
         }
 #endif  
@@ -491,6 +507,11 @@ namespace FROSch {
         else if(!ParameterList_->get("SolverType","Amesos").compare("GDSWPreconditioner")){
         	yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
         	GP->apply(x,*yTmp,Teuchos::NO_TRANS);
+        	y = *yTmp;
+        }
+        else if(!ParameterList_->get("SolverType","Amesos").compare("RGDSWPreconditioner")){
+        	yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
+        	RGP->apply(x,*yTmp,Teuchos::NO_TRANS);
         	y = *yTmp;
         }
 #endif

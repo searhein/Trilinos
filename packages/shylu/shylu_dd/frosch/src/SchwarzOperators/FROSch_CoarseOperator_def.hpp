@@ -261,7 +261,7 @@ namespace FROSch {
         if(OnCoarseSolveComm_){
             const size_t numMyElementS = GraphMap2->getNodeNumElements();
             Teuchos::ArrayView<const GO> myGlobalElements = GraphMap2->getNodeElementList();
-            Teuchos::ArrayView<const GO> idEl;
+            Teuchos::ArrayView<const LO> idEl;
             Teuchos::ArrayView<const GO> va;
             for (UN i = 0; i < numMyElementS; i++) {
                 UN en = ElemS->getNumEntriesInLocalRow(i);
@@ -498,10 +498,8 @@ namespace FROSch {
                     CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
                 }
                 else{
-                	  CoarseSolveComm_->barrier();CoarseSolveComm_->barrier();CoarseSolveComm_->barrier();
-                	  if(CoarseSolveComm_->getRank() == 0) std::cout<<"Before\n";
                     CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
-                    std::cout<<"After reset\n";
+
                 }
 
                 CoarseSolver_->initialize();
