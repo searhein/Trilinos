@@ -94,6 +94,8 @@ namespace FROSch {
         typedef Teuchos::ArrayRCP<MapPtr> MapPtrVecPtr;
 
         typedef Teuchos::ArrayRCP<GO> GOVecPtr;
+        
+        typedef unsigned UN;
 
 
         typedef Xpetra::Matrix<SC,LO,GO,NO> CrsMatrix;
@@ -149,8 +151,7 @@ namespace FROSch {
         @param blockCoarseSize
         */
         SubdomainSolver(CrsMatrixPtr k,
-                        ParameterListPtr parameterList,
-                        GOVecPtr blockCoarseSize=Teuchos::null);
+                        ParameterListPtr parameterList);
 
         //! Destructor
         virtual ~SubdomainSolver();

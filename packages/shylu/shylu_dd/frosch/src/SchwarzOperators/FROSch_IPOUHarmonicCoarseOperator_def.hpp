@@ -117,7 +117,6 @@ namespace FROSch {
         this->InterfaceCoarseSpaces_.resize(this->InterfaceCoarseSpaces_.size()+1);
         this->DofsMaps_.resize(this->DofsMaps_.size()+1);
         this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
-        this->BlockCoarseDimension_.resize(this->BlockCoarseDimension_.size()+1);
         this->NumberOfBlocks_++;
         
         return resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNode,nodesMap,dofsMaps,nullSpaceBasis,dirichletBoundaryDofs,nodeList);
@@ -140,7 +139,6 @@ namespace FROSch {
             this->InterfaceCoarseSpaces_.resize(this->InterfaceCoarseSpaces_.size()+1);
             this->DofsMaps_.resize(this->DofsMaps_.size()+1);
             this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
-            this->BlockCoarseDimension_.resize(this->BlockCoarseDimension_.size()+1);
             this->NumberOfBlocks_++;
             resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNodeVec[i],repeatedNodesMapVec[i],repeatedDofMapsVec[i],nullSpaceBasisVec[i],dirichletBoundaryDofsVec[i],nodeListVec[i]);
         }

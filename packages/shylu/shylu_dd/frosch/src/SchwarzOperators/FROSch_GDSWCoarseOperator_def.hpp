@@ -234,7 +234,6 @@ namespace FROSch {
         this->InterfaceCoarseSpaces_.resize(this->InterfaceCoarseSpaces_.size()+1);
         this->DofsMaps_.resize(this->DofsMaps_.size()+1);
         this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
-        this->BlockCoarseDimension_.resize(this->BlockCoarseDimension_.size()+1);
         this->NumberOfBlocks_++;
         
         resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNode,nodesMap,dofsMaps,dirichletBoundaryDofs,nodeList);
@@ -260,7 +259,6 @@ namespace FROSch {
             this->InterfaceCoarseSpaces_.resize(this->InterfaceCoarseSpaces_.size()+1);
             this->DofsMaps_.resize(this->DofsMaps_.size()+1);
             this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
-            this->BlockCoarseDimension_.resize(this->BlockCoarseDimension_.size()+1);
             this->NumberOfBlocks_++;
             resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNodeVec[i],repeatedNodesMapVec[i],repeatedDofMapsVec[i],dirichletBoundaryDofsVec[i],nodeListVec[i]);
         }
@@ -441,7 +439,7 @@ namespace FROSch {
                 }
                 
                 this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
-                
+                                
                 // Count entities
                 GOVec numEntitiesGlobal(5);
                 if (useVertexTranslations) {
@@ -512,11 +510,6 @@ namespace FROSch {
                     faces: translations         --- " << useFaceTranslations << "\n\
                     faces: rotations            --- " << useFaceRotations << "\n\
                     --------------------------------------------\n";
-                }
-                
-                this->BlockCoarseDimension_[blockId] = 0;
-                for (UN i=0; i<numEntitiesGlobal.size(); i++) {
-                    this->BlockCoarseDimension_[blockId] += numEntitiesGlobal[i];
                 }
             }
         }

@@ -174,8 +174,6 @@ namespace FROSch {
                     coarse nodes: rotations      --- " << useRotations << "\n\
                     --------------------------------------------\n";
                 }
-                
-                this->BlockCoarseDimension_[blockId] = numCoarseNodesGlobal;
             }
         }
         return 0;

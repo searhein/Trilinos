@@ -58,7 +58,6 @@ namespace FROSch {
     GatheringMaps_ (0),
     CoarseSolveMap_ (),
     CoarseSolveRepeatedMap_ (),
-    BlockCoarseDimension_(),
     CoarseSolver_ (),
     DistributionList_ (sublist(parameterList,"Distribution")),
     CoarseSolveExporters_ (0)
@@ -90,7 +89,7 @@ namespace FROSch {
             clearCoarseSpace(); // AH 12/11/2018: If we do not clear the coarse space, we will always append just append the coarse space
             MapPtr subdomainMap = this->computeCoarseSpace(CoarseSpace_); // AH 12/11/2018: This map could be overlapping, repeated, or unique. This depends on the specific coarse operator
             CoarseSpace_->assembleCoarseSpace();
-            CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8));
+        CoarseSpace_->buildGlobalBasisMatrix(this->K_->getRangeMap(),subdomainMap,this->ParameterList_->get("Threshold Phi",1.e-8));
             Phi_ = CoarseSpace_->getGlobalBasisMatrix();
             this->setUpCoarseOperator();
             
@@ -99,11 +98,6 @@ namespace FROSch {
         return 0;
     }
     
-    template <class SC,class LO,class GO,class NO>
-    int CoarseOperator<SC,LO,GO,NO>::clearCoarseSpace()
-    {
-        return CoarseSpace_->clearCoarseSpace();
-    }
     
     template<class SC,class LO,class GO,class NO>
     void CoarseOperator<SC,LO,GO,NO>::apply(const MultiVector &x,
@@ -211,6 +205,12 @@ namespace FROSch {
         // Build Map for the coarse solver
         buildCoarseSolveMap(k0);
         
+        // Set up coarse block maps
+        if (OnCoarseSolveComm_) { std::cout << "TEST1\n";
+            MapPtrVecPtr coarseBlockMaps = computeCoarseBlockMaps(CoarseSolveMap_); std::cout << "TEST2\n";
+            this->ParameterList_->sublist("CoarseSolver").set("Block Maps",coarseBlockMaps); std::cout << "TEST3\n";
+        }
+
         //------------------------------------------------------------------------------------------------------------------------
         // Communicate coarse matrix
         if (!DistributionList_->get("Type","linear").compare("linear")) {
@@ -247,7 +247,9 @@ namespace FROSch {
                 }
                 
                 CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
+
                 CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
+
                 CoarseSolver_->initialize();
 
                 CoarseSolver_->compute();
@@ -284,12 +286,7 @@ namespace FROSch {
                 
                 CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
 
-                if (!this->ParameterList_->sublist("CoarseSolver").get("SolverType","Amesos").compare("MueLu")) {
-                    CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver"),BlockCoarseDimension_));
-                }
-                else{
-                    CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
-                }
+                CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
 
                 CoarseSolver_->initialize();
 
@@ -451,6 +448,12 @@ namespace FROSch {
         return 0;
     }
     
+    
+    template <class SC,class LO,class GO,class NO>
+    int CoarseOperator<SC,LO,GO,NO>::clearCoarseSpace()
+    {
+        return CoarseSpace_->clearCoarseSpace();
+    }
 }
 
 #endif

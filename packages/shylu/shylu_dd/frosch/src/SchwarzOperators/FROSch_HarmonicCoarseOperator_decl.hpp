@@ -92,8 +92,6 @@ namespace FROSch {
         
         virtual int initialize() = 0;
         
-        MapPtr computeCoarseSpace(CoarseSpacePtr coarseSpace);
-        
     protected:
         
         MapPtr assembleCoarseMap();
@@ -123,6 +121,10 @@ namespace FROSch {
                                                  CrsMatrixPtr kII,
                                                  CrsMatrixPtr kIGamma);
 
+        MapPtr computeCoarseSpace(CoarseSpacePtr coarseSpace);
+        
+        MapPtrVecPtr computeCoarseBlockMaps(MapPtr coarseSolveMap);
+        
         
         SubdomainSolverPtr ExtensionSolver_;
 
