@@ -193,6 +193,26 @@ namespace FROSch {
                   }
                 }
 
+                /*
+                 // Nullspace: we need a separate nullspace for each block
+                 //--- Prepare null space for A11
+                 RCP<MultiVector> nullspace11 = MultiVectorFactory::Build(K_->getRowMap(), 2);
+                 std::cout << mapOne->getGlobalNumElements() << " " << nDofsPerNode << std::endl;  FROSCH_ASSERT(mapOne->getGlobalNumElements()%nDofsPerNode==0,"mapOne->getGlobalNumElements()%nDofsPerNode!=0");
+                 FROSCH_ASSERT(mapOne->getGlobalNumElements()/nDofsPerNode==mapTwo->getGlobalNumElements(),"mapOne->getGlobalNumElements()/nDofsPerNode==mapTwo->getGlobalNumElements()");
+                 for (UN i=0; i<mapOne->getNodeNumElements(); i++) {
+                 nullspace11->getDataNonConst(i%nDofsPerNode)[i] = ST::one();
+                 }
+                 
+                 //--- Prepare null space for A22
+                 RCP<MultiVector> nullspace22 = MultiVectorFactory::Build(K_->getRowMap(), 1);
+                 for (UN i=0; i<mapTwo->getNodeNumElements(); i++) {
+                 nullspace22->getDataNonConst(0)[i] = ST::one();
+                 }
+                 
+                 // Use the block matrix from now on
+                 K_ = bK;
+                 */
+                
                 //--- Prepare null space for A22
                 RCP<MultiVector> nullspace22 = MultiVectorFactory::Build(mapTwo, 1);
                 nullspace22->putScalar(ST::one());

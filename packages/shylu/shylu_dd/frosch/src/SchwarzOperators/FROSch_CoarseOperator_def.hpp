@@ -206,9 +206,9 @@ namespace FROSch {
         buildCoarseSolveMap(k0);
         
         // Set up coarse block maps
-        if (OnCoarseSolveComm_) { std::cout << "TEST1\n";
-            MapPtrVecPtr coarseBlockMaps = computeCoarseBlockMaps(CoarseSolveMap_); std::cout << "TEST2\n";
-            this->ParameterList_->sublist("CoarseSolver").set("Block Maps",coarseBlockMaps); std::cout << "TEST3\n";
+        if (OnCoarseSolveComm_) {
+            MapPtrVecPtr coarseBlockMaps = computeCoarseBlockMaps(CoarseSolveMap_);
+            this->ParameterList_->sublist("CoarseSolver").set("Block Maps",coarseBlockMaps);
         }
 
         //------------------------------------------------------------------------------------------------------------------------
