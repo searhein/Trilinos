@@ -673,10 +673,10 @@ namespace FROSch {
                 uniEle = UniqueMap->getNodeElementList();
             }
 
-				Teuchos::RCP<Teuchos::ParameterList> pList = sublist(this->ParameterList_,"CoarseSolver");
-				sublist(this->ParameterList_,"CoarseSolver")->set("Repeated Map",CoarseSolveRepeatedMap_);
-            Teuchos::RCP<Xpetra::Map<LO,GO,NO> > tmpMap = Xpetra::MapFactory<LO,GO,NO>::Build(Xpetra::UseTpetra,-1,uniEle,0,this->MpiComm_);;
-                    //tmpMap->describe(*fancy,Teuchos::VERB_EXTREME);
+	Teuchos::RCP<Teuchos::ParameterList> pList = sublist(this->ParameterList_,"CoarseSolver");
+	sublist(this->ParameterList_,"CoarseSolver")->set("Repeated Map",CoarseSolveRepeatedMap_);
+           Teuchos::RCP<Xpetra::Map<LO,GO,NO> > tmpMap = Xpetra::MapFactory<LO,GO,NO>::Build(Xpetra::UseTpetra,-1,uniEle,0,this->MpiComm_);;
+             //tmpMap->describe(*fancy,Teuchos::VERB_EXTREME);
             CrsMatrixPtr k0Unique = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(tmpMap,k0->getGlobalMaxNumRowEntries());
                     
             CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),tmpMap);
