@@ -62,7 +62,7 @@
 #include <FROSch_LocalPartitionOfUnityBasis_def.hpp>
 
 #include <FROSch_SubdomainSolver_def.hpp>
-
+#include <Teuchos_TimeMonitor.hpp>
 
 // TODO: Auf const überprüfen
 // TODO: #ifndef überprüfen ??????
@@ -157,6 +157,9 @@ namespace FROSch {
         typedef Teuchos::ArrayRCP<bool> BoolVecPtr;
         
         typedef Teuchos::RCP<Xpetra::CrsGraph<LO,GO,NO> > CrsGraphPtr;
+		
+		typedef Teuchos::Time Time;
+        typedef Teuchos::RCP<Time> TimePtr;
 
         
         
@@ -213,6 +216,8 @@ namespace FROSch {
         
         bool IsInitialized_;
         bool IsComputed_;
+		
+		int level;
         
     };
     

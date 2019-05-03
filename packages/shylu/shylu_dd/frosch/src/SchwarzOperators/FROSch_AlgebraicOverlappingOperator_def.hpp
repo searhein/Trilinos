@@ -45,13 +45,41 @@
 #include <FROSch_AlgebraicOverlappingOperator_decl.hpp>
 
 namespace FROSch {
-    
+	
+	std::vector<Teuchos::RCP<Teuchos::Time> > initVec (){
+		std::vector<Teuchos::RCP<Teuchos::Time> > m;
+		m.resize(2);
+		for(int i = 0;i<2;i++){
+			m.at(i) = Teuchos::null;
+		}
+		return m;
+	}
+	template <class SC,class LO,class GO,class NO>
+    int AlgebraicOverlappingOperator<SC,LO,GO,NO>::current_level=0;
+	
     template <class SC,class LO,class GO,class NO>
     AlgebraicOverlappingOperator<SC,LO,GO,NO>::AlgebraicOverlappingOperator(CrsMatrixPtr k,
                                                                             ParameterListPtr parameterList) :
-    OverlappingOperator<SC,LO,GO,NO> (k,parameterList)
-    {
-        
+    OverlappingOperator<SC,LO,GO,NO> (k,parameterList),
+	#ifdef FROSch_AlgebraicOverlappingTimers
+	BuildOverlappingMatricesTimer(this->level),
+	InitOverlappingOperatorTimer(this->level),
+	ComputeOverlappingOperatorTimer(this->level)
+	#endif
+	{
+#ifdef FROSch_AlgebraicOverlappingTimers
+		/*if(current_level == 0){
+			BuildOverlappingMatricesTimer.reserve(2);
+			InitOverlappingOperatorTimer.reserve(2);
+			ComputeOverlappingOperatorTimer.reserve(2);
+		}*/
+		for (int i = 0;i<this->level;i++){
+			BuildOverlappingMatricesTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch AlgebraicOverlappingOperator: BuildOverlappingMatrices " + std::to_string(i));
+			InitOverlappingOperatorTimer.at(i) =Teuchos::TimeMonitor::getNewCounter("FROSch AlgebraicOverlappingOperator: InitOverlappingOperator " + std::to_string(i));
+			ComputeOverlappingOperatorTimer.at(i) =Teuchos::TimeMonitor::getNewCounter("FROSch AlgebraicOverlappingOperator: ComputeOverlappingOperator " + std::to_string(i));
+		}
+#endif
+	   current_level = current_level +1; 
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -60,9 +88,19 @@ namespace FROSch {
         if (repeatedMap.is_null()) {
             repeatedMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->K_->getRangeMap(),1);
         }
+		if(this->MpiComm_->getRank() == 0) std::cout<<"In Here "<<current_level<<" \n";
+		{
+		#ifdef FROSch_AlgebraicOverlappingTimers
+		Teuchos::TimeMonitor BuildOverlappingMatricesTimeMonitor(*BuildOverlappingMatricesTimer.at(current_level-1));
+		#endif
         this->buildOverlappingMatrices(overlap,repeatedMap);
+		}
+		{
+	   #ifdef FROSch_AlgebraicOverlappingTimers
+		Teuchos::TimeMonitor InitOverlappingOperatorTimeMonitor(*InitOverlappingOperatorTimer.at(current_level-1));
+		#endif
         this->initializeOverlappingOperator();
-        
+        }
         this->IsInitialized_ = true;
         this->IsComputed_ = false;
         return 0; // RETURN VALUE!!!
@@ -72,8 +110,13 @@ namespace FROSch {
     int AlgebraicOverlappingOperator<SC,LO,GO,NO>::compute()
     {
         FROSCH_ASSERT(this->IsInitialized_,"ERROR: AlgebraicOverlappingOperator has to be initialized before calling compute()");
-        this->computeOverlappingOperator();
-        
+        {
+			
+		#ifdef FROSch_AlgebraicOverlappingTimers
+		Teuchos::TimeMonitor ComputeOverlappingOperatorTimeMonitor(*ComputeOverlappingOperatorTimer.at(current_level-1));
+		#endif
+		this->computeOverlappingOperator();
+        }
         this->IsComputed_ = true;
         return 0; // RETURN VALUE!!!
     }

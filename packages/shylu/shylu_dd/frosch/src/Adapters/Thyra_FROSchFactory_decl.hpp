@@ -64,7 +64,7 @@
 #include "Teuchos_ArrayRCP.hpp"
 #include "Teuchos_Array.hpp"
 #include <Teuchos_XMLParameterListCoreHelpers.hpp>
-
+#include "Teuchos_TimeMonitor.hpp"
 //Xpetra
 #include <Xpetra_CrsMatrixWrap.hpp>
 #include <Xpetra_CrsMatrix.hpp>
@@ -91,8 +91,9 @@
 #include <FROSch_TwoLevelBlockPreconditioner_def.hpp>
 #include <Thyra_FROSchLinearOp_def.hpp>
 #include <FROSch_Tools_def.hpp>
-
 #include "Kokkos_DefaultNode.hpp"
+
+#define FROSch_ThyraTimers
 
 namespace Thyra {
     
@@ -115,6 +116,9 @@ namespace Thyra {
         typedef Teuchos::ArrayRCP<UN> UNVecPtr;
         
         typedef Teuchos::ArrayRCP<LO> LOVecPtr;
+
+        typedef Teuchos::Time Time;
+        typedef Teuchos::RCP<Time> TimePtr;
         
         // More typedefs!!!
         
@@ -147,7 +151,10 @@ namespace Thyra {
         std::string description() const;
         private:
         Teuchos::RCP<ParameterList> paramList_;
-                
+#ifdef FROSch_ThyraTimers
+        TimePtr initFROSchTimer;
+		TimePtr computeFROSchTimer;
+#endif               
     };
 }
 

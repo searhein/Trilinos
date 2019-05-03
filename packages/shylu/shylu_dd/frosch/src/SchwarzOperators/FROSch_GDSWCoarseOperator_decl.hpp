@@ -43,6 +43,7 @@
 #define _FROSCH_GDSWCOARSEOPERATOR_DECL_HPP
 
 #include <FROSch_HarmonicCoarseOperator_def.hpp>
+#define FROSch_GDSWOperatorTimers
 
 
 namespace FROSch {
@@ -99,6 +100,9 @@ namespace FROSch {
         typedef Teuchos::RCP<InterfaceEntity<SC,LO,GO,NO> > InterfaceEntityPtr;
         typedef Teuchos::Array<InterfaceEntityPtr> InterfaceEntityPtrVec;
         typedef Teuchos::ArrayRCP<InterfaceEntityPtr> InterfaceEntityPtrVecPtr;
+		
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::Time Time;
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr TimePtr;
 
         
         GDSWCoarseOperator(CrsMatrixPtr k,
@@ -202,6 +206,13 @@ namespace FROSch {
                                           MultiVectorPtr nodeList);                
         
         DDInterfacePtr DDInterface_;
+		
+		static int current_level;
+		
+		#ifdef FROSch_GDSWOperatorTimers
+		std::vector<TimePtr> BuildCoarseSpaceTimer;
+		std::vector <TimePtr> ResetCoarseSpaceTimer;
+	    #endif
 
     };
     

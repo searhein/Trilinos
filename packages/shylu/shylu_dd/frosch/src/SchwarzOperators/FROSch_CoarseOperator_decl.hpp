@@ -43,7 +43,7 @@
 #define _FROSCH_COARSEOPERATOR_DECL_HPP
 
 #include <FROSch_SchwarzOperator_def.hpp>
-
+#define FROSch_CoarseOperatorTimers
 // TODO: Member sortieren!?
 
 
@@ -105,6 +105,9 @@ namespace FROSch {
         typedef Teuchos::RCP<InterfaceEntity<SC,LO,GO,NO> > InterfaceEntityPtr;
         typedef Teuchos::Array<InterfaceEntityPtr> InterfaceEntityPtrVec;
         typedef Teuchos::ArrayRCP<InterfaceEntityPtr> InterfaceEntityPtrVecPtr;
+		
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::Time Time;
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr TimePtr;
 
         
 
@@ -140,7 +143,7 @@ namespace FROSch {
 
         virtual CoarseSpacePtr getCoarseSpace() const;
         
-        
+        static int current_level;
         
     protected:
         
@@ -171,7 +174,6 @@ namespace FROSch {
         GOVecPtr BlockCoarseDimension_;
         
         SubdomainSolverPtr CoarseSolver_;
-        
         ParameterListPtr DistributionList_;
         
         ExporterPtrVecPtr CoarseSolveExporters_;
@@ -183,7 +185,25 @@ namespace FROSch {
         Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> > GraphEntriesList_;
         
         ConstMapPtr kRowMap_;
-        
+ 
+#ifdef FROSch_CoarseOperatorTimers
+	 Teuchos::Array<TimePtr> ComputeTimer;
+	Teuchos::Array<TimePtr> BuildGraphEntriesTimer;
+	Teuchos::Array<TimePtr> BuildGraphTimer;
+	Teuchos::Array<TimePtr> BuildElementNodeListTimer;
+	
+	Teuchos::Array<TimePtr> ApplyTimer;
+	Teuchos::Array<TimePtr> ApplyPhiTTimer;
+	Teuchos::Array<TimePtr> ApplyExportTimer;
+	Teuchos::Array<TimePtr> ApplyCoarseSolveTimer;
+	Teuchos::Array<TimePtr> ApplyPhiTimer;
+	Teuchos::Array<TimePtr> ApplyImportTimer;
+	Teuchos::Array<TimePtr> SetUpTimer;
+	Teuchos::Array<TimePtr> BuildCoarseMatrixTimer;
+	Teuchos::Array<TimePtr> BuildCoarseSolveMapTimer;
+	Teuchos::Array<TimePtr> BuildCoarseRepMapTimer;
+	Teuchos::Array<TimePtr> ExportKOTimer;
+#endif  
     };
     
 }

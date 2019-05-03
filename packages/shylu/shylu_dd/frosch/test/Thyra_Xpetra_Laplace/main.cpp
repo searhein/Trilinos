@@ -46,6 +46,7 @@
 #include <Teuchos_GlobalMPISession.hpp>
 #include <Teuchos_CommandLineProcessor.hpp>
 #include <Teuchos_XMLParameterListCoreHelpers.hpp>
+#include <Teuchos_TimeMonitor.hpp>
 
 // Galeri::Xpetra
 #include "Galeri_XpetraProblemFactory.hpp"
@@ -380,6 +381,7 @@ int main(int argc, char *argv[])
         
         
         Comm->barrier(); if (Comm->getRank()==0) cout << "\n#############\n# Finished! #\n#############" << endl;        
+		Teuchos::TimeMonitor::summarize();
     }
     
     return(EXIT_SUCCESS);

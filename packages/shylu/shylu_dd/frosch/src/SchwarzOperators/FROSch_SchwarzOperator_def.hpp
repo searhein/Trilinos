@@ -70,7 +70,8 @@ namespace FROSch {
     ParameterList_ (parameterList),
     Verbose_ (MpiComm_->getRank()==0),
     IsInitialized_ (false),
-    IsComputed_ (false)
+    IsComputed_ (false),
+	level(parameterList->get("Level",2))
     {
         FROSCH_ASSERT(getDomainMap()->isSameAs(*getRangeMap()),"SchwarzOperator assumes DomainMap==RangeMap");
         SerialComm_ = Teuchos::createSerialComm<int>();

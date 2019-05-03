@@ -44,6 +44,9 @@
 
 #include <FROSch_CoarseOperator_decl.hpp>
 namespace FROSch {
+	
+	template <class SC,class LO,class GO,class NO>
+    int CoarseOperator <SC,LO,GO,NO>::current_level=0;
     
     template<class SC,class LO,class GO,class NO>
     CoarseOperator<SC,LO,GO,NO>::CoarseOperator(CrsMatrixPtr k,
@@ -64,9 +67,45 @@ namespace FROSch {
     CoarseSolveExporters_ (0),
     SubdomainConnectGraph_(),
     GraphEntriesList_(),
-    kRowMap_()
-    {
-        
+    kRowMap_()	
+#ifdef FROSch_CoarseOperatorTimers
+   ,ComputeTimer(this->level), 
+	BuildGraphEntriesTimer(this->level) ,
+	BuildGraphTimer(this->level),
+	BuildElementNodeListTimer(this->level),
+	BuildCoarseMatrixTimer(this->level),
+	ApplyTimer(this->level),
+	ApplyPhiTTimer(this->level),
+	ApplyExportTimer(this->level),
+    ApplyCoarseSolveTimer(this->level),
+    ApplyPhiTimer(this->level),
+    ApplyImportTimer(this->level),
+	SetUpTimer(this->level),
+	BuildCoarseSolveMapTimer(this->level),
+	BuildCoarseRepMapTimer(this->level),
+	ExportKOTimer(this->level)
+#endif    
+{
+	#ifdef FROSch_CoarseOperatorTimers
+	for(int i = 0;i<this->level;i++){
+		BuildGraphEntriesTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildGraphEntries "+std::to_string(i));
+		BuildGraphTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildGraph "+std::to_string(i));
+		BuildElementNodeListTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildElementNodeList "+std::to_string(i));
+		ComputeTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator Compute "+std::to_string(i));
+		ApplyTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator Apply "+std::to_string(i));
+		ApplyPhiTTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator ApplyPhiT "+std::to_string(i));
+		ApplyExportTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator Export "+std::to_string(i));
+		ApplyCoarseSolveTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator ApplyCoarseSolve "+std::to_string(i));
+		ApplyPhiTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator ApplyPhi "+std::to_string(i));
+		ApplyImportTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator Import "+std::to_string(i));
+		SetUpTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator SetUp "+std::to_string(i));
+		BuildCoarseSolveMapTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseSolveMap "+std::to_string(i));
+		BuildCoarseMatrixTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseSolveMap "+std::to_string(i));
+		BuildCoarseRepMapTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseRepMap "+std::to_string(i));
+		ExportKOTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator ExportKo "+std::to_string(i));
+	}
+	#endif
+        current_level = current_level+1;
     }
     
     template<class SC,class LO,class GO,class NO>
@@ -80,7 +119,9 @@ namespace FROSch {
         
         Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 
-        
+        #ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor BuildGraphEntriesTimeMonitor(*BuildGraphEntriesTimer.at(current_level-1));
+		#endif
         int nSubs = this->MpiComm_->getSize();
         int MyPID  = this->MpiComm_->getRank();
         std::map<GO,int> rep;
@@ -123,7 +164,9 @@ namespace FROSch {
     
     template <class SC,class LO, class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::buildConnectGraph(){
-        
+        #ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor BuildGraphTimeMonitor(*BuildGraphTimer.at(current_level-1));
+		#endif
         Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
 
         
@@ -199,7 +242,9 @@ namespace FROSch {
     template <class SC,class LO,class GO, class NO>
     int CoarseOperator<SC,LO,GO,NO>::buildElementNodeList(MapPtr &tmpCoarseMap){
         Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout));
-
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor BuildElementNodeListTimeMonitor(*BuildElementNodeListTimer.at(current_level-1));
+		#endif
         
         int nSubs = this->MpiComm_->getSize();
         GOVec elementList(tmpCoarseMap->getNodeElementList());
@@ -282,6 +327,11 @@ namespace FROSch {
     template <class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::compute()
     {
+		this->MpiComm_->barrier();this->MpiComm_->barrier();this->MpiComm_->barrier();
+		if(this->MpiComm_->getRank() == 0) std::cout<<"compute"<<current_level<<std::endl;
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor ComputeTimeMonitor(*ComputeTimer.at(current_level-1));
+		#endif
         FROSCH_ASSERT(this->IsInitialized_,"ERROR: CoarseOperator has to be initialized before calling compute()");
         // This is not optimal yet... Some work could be moved to Initialize
         if (this->Verbose_) {
@@ -320,6 +370,9 @@ namespace FROSch {
                                             SC alpha,
                                             SC beta) const
     {
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor ApplyTimeMonitor(*ApplyTimer.at(current_level-1));
+		#endif
         static int i = 0;
         if (this->IsComputed_) {
             MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
@@ -351,6 +404,9 @@ namespace FROSch {
     void CoarseOperator<SC,LO,GO,NO>::applyPhiT(MultiVector& x,
                                                 MultiVector& y) const
     {
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor ApplyPhiTTimeMonitor(*ApplyPhiTTimer.at(current_level-1));
+		#endif
         MultiVectorPtr xCoarse = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),x.getNumVectors());
         
         Phi_->apply(x,*xCoarse,Teuchos::TRANS);
@@ -358,8 +414,13 @@ namespace FROSch {
         MultiVectorPtr xCoarseSolveTmp;
         for (UN j=0; j<GatheringMaps_.size(); j++) {
             xCoarseSolveTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[j],x.getNumVectors());
-            xCoarseSolveTmp->doExport(*xCoarse,*CoarseSolveExporters_[j],Xpetra::ADD);
-            xCoarse = xCoarseSolveTmp;
+			{
+				#ifdef FROSch_CoarseOperatorTimers
+				Teuchos::TimeMonitor  ApplyExportTimeMonitor(*ApplyExportTimer.at(current_level-1));
+				#endif
+				xCoarseSolveTmp->doExport(*xCoarse,*CoarseSolveExporters_[j],Xpetra::ADD);
+				xCoarse = xCoarseSolveTmp;
+			}
         }
         y = *xCoarseSolveTmp;
     }
@@ -369,6 +430,9 @@ namespace FROSch {
                                                        MultiVector& y,
                                                        Teuchos::ETransp mode) const
     {
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor ApplyCoarseSolveTimeMonitor(*ApplyCoarseSolveTimer.at(current_level-1));
+		#endif
         MultiVectorPtr yTmp;
         if (OnCoarseSolveComm_) {
             x.replaceMap(CoarseSolveMap_);
@@ -385,14 +449,22 @@ namespace FROSch {
     void CoarseOperator<SC,LO,GO,NO>::applyPhi(MultiVector& x,
                                                MultiVector& y) const
     {
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor ApplyPhiTimeMonitor(*ApplyPhiTimer.at(current_level-1));
+		#endif
         MultiVectorPtr yCoarseSolveTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
         *yCoarseSolveTmp = x;
 
         MultiVectorPtr yCoarse;
         for (int j=GatheringMaps_.size()-1; j>0; j--) {
             yCoarse = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(GatheringMaps_[j-1],x.getNumVectors());
+			{
+				#ifdef FROSch_CoarseOperatorTimers
+				Teuchos::TimeMonitor ApplyImportTimeMonitor(*ApplyImportTimer.at(current_level-1));
+				#endif
             yCoarse->doImport(*yCoarseSolveTmp,*CoarseSolveExporters_[j],Xpetra::INSERT);
             yCoarseSolveTmp = yCoarse;
+			}
         }
      
         yCoarse = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),x.getNumVectors());
@@ -413,7 +485,9 @@ namespace FROSch {
     int CoarseOperator<SC,LO,GO,NO>::setUpCoarseOperator()
     {
         // Build CoarseMatrix_
-        
+        #ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor SetUpTimeMonitor(*SetUpTimer.at(current_level-1));
+		#endif
         CrsMatrixPtr k0 = buildCoarseMatrix();
         kRowMap_ = k0->getMap();
         // Build Map for the coarse solver
@@ -521,6 +595,9 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     typename CoarseOperator<SC,LO,GO,NO>::CrsMatrixPtr CoarseOperator<SC,LO,GO,NO>::buildCoarseMatrix()
     {
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor BuildCoarseMatrixTimeMonitor(*BuildCoarseMatrixTimer.at(current_level-1));
+		#endif
         CrsMatrixPtr k0 = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),CoarseSpace_->getBasisMap()->getNodeNumElements());
         
         if (this->ParameterList_->get("Use Triple MatrixMultiply",false)) {
@@ -537,6 +614,9 @@ namespace FROSch {
     template<class SC,class LO,class GO,class NO>
     int CoarseOperator<SC,LO,GO,NO>::buildCoarseSolveMap(CrsMatrixPtr &k0)
     {
+		#ifdef FROSch_CoarseOperatorTimers
+		Teuchos::TimeMonitor BuildCoarseSolveMapTimeMonitor(*BuildCoarseSolveMapTimer.at(current_level-1));
+		#endif
         Teuchos::RCP<Teuchos::FancyOStream> fancy = fancyOStream(Teuchos::rcpFromRef(std::cout)); 
 
         NumProcsCoarseSolve_ = DistributionList_->get("NumProcs",0);
@@ -668,19 +748,29 @@ namespace FROSch {
             GOVec uniEle;
                     
             if(OnCoarseSolveComm_){
+				{
+					#ifdef FROSch_CoarseOperatorTimers
+					Teuchos::TimeMonitor BuildCoarseRepMapTimeMonitor(*BuildCoarseRepMapTimer.at(current_level-1));
+					#endif
                 CoarseSolveRepeatedMap_ = FROSch::BuildRepMap_Zoltan<SC,LO,GO,NO>(SubdomainConnectGraph_,ElementNodeList_, DistributionList_,CoarseSolveComm_);
-                UniqueMap = FROSch::BuildUniqueMap<LO,GO,NO>(CoarseSolveRepeatedMap_);
+                }
+				UniqueMap = FROSch::BuildUniqueMap<LO,GO,NO>(CoarseSolveRepeatedMap_);
                 uniEle = UniqueMap->getNodeElementList();
             }
 
-	Teuchos::RCP<Teuchos::ParameterList> pList = sublist(this->ParameterList_,"CoarseSolver");
-	sublist(this->ParameterList_,"CoarseSolver")->set("Repeated Map",CoarseSolveRepeatedMap_);
+			Teuchos::RCP<Teuchos::ParameterList> pList = sublist(this->ParameterList_,"CoarseSolver");
+			sublist(this->ParameterList_,"CoarseSolver")->set("Repeated Map",CoarseSolveRepeatedMap_);
            Teuchos::RCP<Xpetra::Map<LO,GO,NO> > tmpMap = Xpetra::MapFactory<LO,GO,NO>::Build(Xpetra::UseTpetra,-1,uniEle,0,this->MpiComm_);;
              //tmpMap->describe(*fancy,Teuchos::VERB_EXTREME);
             CrsMatrixPtr k0Unique = Xpetra::MatrixFactory<SC,LO,GO,NO>::Build(tmpMap,k0->getGlobalMaxNumRowEntries());
                     
             CoarseSolveExporters_[0] = Xpetra::ExportFactory<LO,GO,NO>::Build(CoarseSpace_->getBasisMap(),tmpMap);
-            k0Unique->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
+			{
+				#ifdef FROSch_CoarseOperatorTimers
+				Teuchos::TimeMonitor ExportKOTimeMonitor(*ExportKOTimer.at(current_level-1));
+				#endif
+				k0Unique->doExport(*k0,*CoarseSolveExporters_[0],Xpetra::INSERT);
+			}
             k0Unique->fillComplete(GatheringMaps_[0],GatheringMaps_[0]);
                     
             k0 = k0Unique;

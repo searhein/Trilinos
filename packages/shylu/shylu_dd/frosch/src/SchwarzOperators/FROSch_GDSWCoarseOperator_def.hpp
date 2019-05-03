@@ -45,14 +45,27 @@
 #include <FROSch_GDSWCoarseOperator_decl.hpp>
 
 namespace FROSch {
+	
+	template<class SC,class LO, class GO, class NO>
+	int GDSWCoarseOperator<SC,LO,GO,NO>::current_level = 0;
     
     template <class SC,class LO,class GO,class NO>
     GDSWCoarseOperator<SC,LO,GO,NO>::GDSWCoarseOperator(CrsMatrixPtr k,
                                                         ParameterListPtr parameterList) :
     HarmonicCoarseOperator<SC,LO,GO,NO> (k,parameterList),
     DDInterface_ ()
+	#ifdef FROSch_GDSWOperatorTimers
+	,BuildCoarseSpaceTimer(this->level),
+	ResetCoarseSpaceTimer(this->level)
+	#endif
     {
-        
+		#ifdef FROSch_GDSWOperatorTimers
+        for(int i = 0;i<this->level;i++){
+			//BuildCoarseSpaceTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch GDSWCoarseOperator BuildCoarseSpace " + std::to_string(i));
+			ResetCoarseSpaceTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch GDSWCoarseOperator ResetCoarseSpace " + std::to_string(i));
+		}
+		#endif
+		current_level = current_level+1;
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -224,7 +237,9 @@ namespace FROSch {
                                                           MapPtrVecPtr dofsMaps,
                                                           GOVecPtr dirichletBoundaryDofs,
                                                           MultiVectorPtr nodeList)
-    {
+    {	
+		{
+		
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         
         // Das könnte man noch ändern
@@ -236,7 +251,8 @@ namespace FROSch {
         this->DofsPerNode_.resize(this->DofsPerNode_.size()+1);
         this->BlockCoarseDimension_.resize(this->BlockCoarseDimension_.size()+1);
         this->NumberOfBlocks_++;
-        
+	
+        }
         resetCoarseSpaceBlock(this->NumberOfBlocks_-1,dimension,dofsPerNode,nodesMap,dofsMaps,dirichletBoundaryDofs,nodeList);
         
         return 0;
@@ -277,7 +293,10 @@ namespace FROSch {
                                                                GOVecPtr dirichletBoundaryDofs,
                                                                MultiVectorPtr nodeList)
     {
-        
+		
+		#ifdef FROSch_GDSWOperatorTimers
+		Teuchos::TimeMonitor ResetCoarseSpaceTimeMonitor(*ResetCoarseSpaceTimer.at(current_level-1));
+		#endif
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         FROSCH_ASSERT(blockId<this->NumberOfBlocks_,"Block does not exist yet and can therefore not be reset.");
         
@@ -513,6 +532,7 @@ namespace FROSch {
                     faces: rotations            --- " << useFaceRotations << "\n\
                     --------------------------------------------\n";
                 }
+			
                 if (this->ParameterList_->get("Use RepMap",false)) {
                     if (this->K_->getMap()->lib() == Xpetra::UseTpetra) {
                         this->buildGraphEntries(DDInterface_);
