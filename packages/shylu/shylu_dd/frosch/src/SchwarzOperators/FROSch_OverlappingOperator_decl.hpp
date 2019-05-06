@@ -74,6 +74,9 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::ConstSCVecPtr ConstSCVecPtr;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::UN UN;
+		
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::Time Time;
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr TimePtr;
         
 
         OverlappingOperator(CrsMatrixPtr k,
@@ -92,6 +95,7 @@ namespace FROSch {
                           SC alpha=Teuchos::ScalarTraits<SC>::one(),
                           SC beta=Teuchos::ScalarTraits<SC>::zero()) const;
         
+		static int current_level;
     protected:
         
         enum CombinationType {Averaging,Full,Restricted};
@@ -111,6 +115,8 @@ namespace FROSch {
         MultiVectorPtr Multiplicity_;
         
         CombinationType Combine_;
+		
+		
         
         int LevelID_;
         

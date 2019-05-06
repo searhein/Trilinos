@@ -45,13 +45,27 @@
 #include <FROSch_RGDSWCoarseOperator_decl.hpp>
 
 namespace FROSch {
+	
+	template<class SC,class LO, class GO, class NO>
+	int RGDSWCoarseOperator<SC,LO,GO,NO>::current_level = 0;
+	
     
     template <class SC,class LO,class GO,class NO>
     RGDSWCoarseOperator<SC,LO,GO,NO>::RGDSWCoarseOperator(CrsMatrixPtr k,
                                                           ParameterListPtr parameterList) :
     GDSWCoarseOperator<SC,LO,GO,NO> (k,parameterList)
-    {
-        
+    #ifdef FROSch_RDSWOperatorTimers  
+	,BuildCoarseSpaceTimer(this->level),
+	ResetCoarseSpaceTimer(this->level)
+	#endif
+	{
+		#ifdef FROSch_RGDSWOperatorTimers
+        for(int i = 0;i<this->level;i++){
+			//BuildCoarseSpaceTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch RGDSWCoarseOperator BuildCoarseSpace " + std::to_string(i));
+			ResetCoarseSpaceTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch RGDSWCoarseOperator ResetCoarseSpace " + std::to_string(i));
+		}
+		#endif
+       current_level = current_level + 1; 
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -63,6 +77,9 @@ namespace FROSch {
                                                                 GOVecPtr dirichletBoundaryDofs,
                                                                 MultiVectorPtr nodeList)
     {
+		#ifdef FROSch_RGDSWOperatorTimers
+		Teuchos::TimeMonitor ResetCoarseSpaceTimeMonitor(*ResetCoarseSpaceTimer.at(current_level-1));
+		#endif
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         FROSCH_ASSERT(blockId<this->NumberOfBlocks_,"Block does not exist yet and can therefore not be reset.");
         

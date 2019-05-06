@@ -203,6 +203,7 @@ namespace FROSch {
 	Teuchos::Array<TimePtr> BuildCoarseSolveMapTimer;
 	Teuchos::Array<TimePtr> BuildCoarseRepMapTimer;
 	Teuchos::Array<TimePtr> ExportKOTimer;
+	Teuchos::Array<TimePtr> BuildDirectSolvesTimer;
 #endif  
     };
     

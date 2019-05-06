@@ -69,6 +69,10 @@ namespace FROSch {
         typedef typename SchwarzOperator<SC,LO,GO,NO>::UN UN;
         
         typedef typename SchwarzOperator<SC,LO,GO,NO>::BoolVec BoolVec;
+		
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::Time Time;
+		typedef typename SchwarzOperator<SC,LO,GO,NO>::TimePtr TimePtr;
+		
 
         
         SumOperator(CommPtr comm);

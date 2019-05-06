@@ -83,7 +83,8 @@ namespace FROSch {
 	SetUpTimer(this->level),
 	BuildCoarseSolveMapTimer(this->level),
 	BuildCoarseRepMapTimer(this->level),
-	ExportKOTimer(this->level)
+	ExportKOTimer(this->level),
+	BuildDirectSolvesTimer(this->level)
 #endif    
 {
 	#ifdef FROSch_CoarseOperatorTimers
@@ -100,9 +101,11 @@ namespace FROSch {
 		ApplyImportTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator Import "+std::to_string(i));
 		SetUpTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator SetUp "+std::to_string(i));
 		BuildCoarseSolveMapTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseSolveMap "+std::to_string(i));
-		BuildCoarseMatrixTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseSolveMap "+std::to_string(i));
+		BuildCoarseMatrixTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseMatrix "+std::to_string(i));
 		BuildCoarseRepMapTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildCoarseRepMap "+std::to_string(i));
 		ExportKOTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator ExportKo "+std::to_string(i));
+        BuildDirectSolvesTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch CoarsOperator BuildDirectSolves "+std::to_string(i));
+
 	}
 	#endif
         current_level = current_level+1;
@@ -533,10 +536,14 @@ namespace FROSch {
                 
                 CoarseMatrix_->fillComplete(CoarseSolveMap_,CoarseSolveMap_); //Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(std::cout)); CoarseMatrix_->describe(*fancy,Teuchos::VERB_EXTREME);
                 CoarseSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(CoarseMatrix_,sublist(this->ParameterList_,"CoarseSolver")));
-                CoarseSolver_->initialize();
-
-                CoarseSolver_->compute();
-                
+                {
+					#ifdef FROSch_CoarseOperatorTimers
+					Teuchos::TimeMonitor BuildDirectSolvesTimeMonitor(*BuildDirectSolvesTimer.at(current_level-1));
+					CoarseSolver_->initialize();
+					CoarseSolver_->compute();
+					#endif
+					
+                }
             }
 #ifdef HAVE_SHYLU_DDFROSCH_ZOLTAN2
         } else if (!DistributionList_->get("Type","linear").compare("Zoltan2")) {
