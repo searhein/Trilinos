@@ -44,6 +44,7 @@
 
 #include <FROSch_SchwarzOperator_def.hpp>
 
+#define FROSch_OverlappingOperatorTimers
 namespace FROSch {
     
     template <class SC = Xpetra::Operator<>::scalar_type,
@@ -115,8 +116,13 @@ namespace FROSch {
         MultiVectorPtr Multiplicity_;
         
         CombinationType Combine_;
-		
-		
+		#ifdef FROSch_OverlappingOperatorTimers
+		Teuchos::Array<TimePtr> ApplyTimer;
+		Teuchos::Array<TimePtr> ApplyImportTimer;
+		Teuchos::Array<TimePtr> ApplyExportTimer;
+		Teuchos::Array<TimePtr> BuildDirectSolves;
+		Teuchos::Array<TimePtr> ApplyDirectSolves;
+		#endif
         
         int LevelID_;
         

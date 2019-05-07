@@ -45,6 +45,10 @@
 #include <FROSch_OverlappingOperator_decl.hpp>
 
 namespace FROSch {
+	
+	template<class SC,class LO, class GO, class NO>
+	int OverlappingOperator<SC,LO,GO,NO>::current_level = 0;
+    
     
     template <class SC,class LO,class GO,class NO>
     OverlappingOperator<SC,LO,GO,NO>::OverlappingOperator(CrsMatrixPtr k,
@@ -57,7 +61,24 @@ namespace FROSch {
     Multiplicity_(),
     Combine_(),
     LevelID_(this->ParameterList_->get("Level ID",1))
+	#ifdef FROSch_OverlappingOperatorTimers
+	,ApplyTimer(this->level),
+	ApplyImportTimer(this->level),
+	ApplyExportTimer(this->level),
+	BuildDirectSolves(this->level),
+	ApplyDirectSolves(this->level)
+	#endif
     {
+		#ifdef FROSch_OverlappingOperatorTimers
+		for(int i = 0;i<2;i++){
+			ApplyTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch OverlappingOperator Apply "+std::to_string(i));
+			ApplyImportTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch OverlappingOperator ApplyImport "+std::to_string(i));
+			ApplyExportTimer.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch OverlappingOperator ApplyExport "+std::to_string(i));
+			BuildDirectSolves.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch OverlappingOperator BuildDirectSolves "+std::to_string(i));
+			ApplyDirectSolves.at(i) = Teuchos::TimeMonitor::getNewCounter("FROSch OverlappingOperator ApplyDirectSolves "+std::to_string(i));
+		}
+		#endif
+		current_level = current_level + 1; 
         if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Averaging")) {
             Combine_ = Averaging;
         } else if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Full")) {
@@ -65,6 +86,7 @@ namespace FROSch {
         } else if (!this->ParameterList_->get("Overlapping Operator Combination","Restricted").compare("Restricted")) {
             Combine_ = Restricted;
         }
+		
     }
     
     template <class SC,class LO,class GO,class NO>
@@ -82,6 +104,9 @@ namespace FROSch {
                                                  SC alpha,
                                                  SC beta) const
     {
+		#ifdef FROSch_OverlappingOperatorTimers
+		Teuchos::TimeMonitor ApplyTimeMonitor(*ApplyTimer.at(current_level-1));
+		#endif
         FROSCH_ASSERT(this->IsComputed_,"ERROR: OverlappingOperator has to be computed before calling apply()");
 
         MultiVectorPtr xTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(x.getMap(),x.getNumVectors());
@@ -115,13 +140,21 @@ namespace FROSch {
             xOverlap = Teuchos::RCP<Xpetra::EpetraMultiVectorT<GO,NO> >(new Xpetra::EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
         } else {
             xOverlap = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
-            
-            xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
-            
-            xOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+            {
+				#ifdef FROSch_OverlappingOperatorTimers
+				Teuchos::TimeMonitor ApplyImportTimeMonitor(*ApplyImportTimer.at(current_level-1));
+				#endif
+				xOverlap->doImport(*xTmp,*Scatter_,Xpetra::INSERT);
+				xOverlap->replaceMap(OverlappingMatrix_->getRangeMap());
+			}
         }
+		{
+		#ifdef FROSch_OverlappingOperatorTimers
+		Teuchos::TimeMonitor ApplyDirectSolvesTimeMonitor(*ApplyDirectSolves.at(current_level-1));
+		#endif
         SubdomainSolver_->apply(*xOverlap,*yOverlap,mode,1.0,0.0);
-        yOverlap->replaceMap(OverlappingMap_);
+        }
+		yOverlap->replaceMap(OverlappingMap_);
 
         xTmp->putScalar(0.0);
         if (Combine_ == Restricted){
@@ -182,9 +215,14 @@ namespace FROSch {
         OverlappingMatrix_ = ExtractLocalSubdomainMatrix(OverlappingMatrix_,OverlappingMap_);
         
         SubdomainSolver_.reset(new SubdomainSolver<SC,LO,GO,NO>(OverlappingMatrix_,sublist(this->ParameterList_,"Solver")));
+		int ret;
+		{
+			#ifdef FROSch_OverlappingOperatorTimers
+			Teuchos::TimeMonitor BuildDirectSolvesTimeMonitor(*BuildDirectSolves.at(current_level-1));
+			#endif
         SubdomainSolver_->initialize();
-
-        int ret = SubdomainSolver_->compute();
+		ret = SubdomainSolver_->compute();
+		}
 
         return ret; // RETURN VALUE
     }
