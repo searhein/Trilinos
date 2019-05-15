@@ -76,6 +76,137 @@ namespace FROSch {
         }
     }
     
+    template <class SC,class LO,class GO,class NO>
+    int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::initialize(UN dimension,
+                                                             UNVecPtr dofsPerNodeVec,
+                                                             DofOrderingVecPtr dofOrderingVec,
+                                                             MapPtrVecPtr repeatedNodesMapVec,
+                                                             int overlap,
+                                                             MapPtrVecPtr repeatedMapVec,
+                                                             MultiVectorPtrVecPtr nullSpaceBasisVec,
+                                                             MultiVectorPtrVecPtr nodeListVec,
+                                                             MapPtrVecPtr2D dofsMapsVec,
+                                                             GOVecPtr2D dirichletBoundaryDofsVec)
+    {
+        Teuchos::RCP< const Teuchos::Comm< int > > TC =repeatedNodesMapVec[0]->getComm();
+        UN nmbBlocks = dofsPerNodeVec.size();
+        for (UN i = 0; i < dofOrderingVec.size(); i++ ) {
+            DofOrdering dofOrdering = dofOrderingVec[i];
+            FROSCH_ASSERT(dofOrdering == NodeWise || dofOrdering == DimensionWise || dofOrdering == Custom,"ERROR: Specify a valid DofOrdering.");
+        }
+        int ret = 0;
+        //-----MAPS---
+        TC->barrier();TC->barrier();TC->barrier();
+        if(TC->getRank() == 0) std::cout<<"Init1\n";
+        for(int i = 0;i<repeatedNodesMapVec.
+            size();i++){
+            TC->barrier();TC->barrier();TC->barrier();
+            if(TC->getRank() == 0) std::cout<<"Init1.1\n";
+            repeatedMapVec[i] = BuildMapFromNodeMap(repeatedNodesMapVec[i],dofsPerNodeVec[i],dofOrderingVec[0]);
+            TC->barrier();TC->barrier();TC->barrier();
+            if(TC->getRank() == 0) std::cout<<"Init1.2\n";
+            
+        }
+        TC->barrier();TC->barrier();TC->barrier();
+        if(TC->getRank() == 0) std::cout<<"Init2\n";
+        BuildDofMapsVec(repeatedMapVec,dofsPerNodeVec,dofOrderingVec,repeatedNodesMapVec,dofsMapsVec);
+        TC->barrier();TC->barrier();TC->barrier();
+        if(TC->getRank() == 0) std::cout<<"Init3\n";
+        
+        //---------------------------------------
+        //////////////////////////
+        // Communicate nodeList //
+        //////////////////////////
+        if (!nodeListVec.is_null()) {
+            for (UN i=0; i<nodeListVec.size(); i++) {
+                if (!nodeListVec[i]->getMap()->isSameAs(*repeatedNodesMapVec[i])) {
+                    Teuchos::RCP<Xpetra::MultiVector<SC,LO,GO,NO> > tmpNodeList = nodeListVec[i];
+                    nodeListVec[i] = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(repeatedNodesMapVec[i],tmpNodeList->getNumVectors());
+                    Teuchos::RCP<Xpetra::Import<LO,GO,NO> > scatter = Xpetra::ImportFactory<LO,GO,NO>::Build(tmpNodeList->getMap(),repeatedNodesMapVec[i]);
+                    nodeListVec[i]->doImport(*tmpNodeList,*scatter,Xpetra::INSERT);
+                }
+            }
+        }
+        else{
+            nodeListVec.resize(nmbBlocks);
+        }
+        
+        //////////////////////////////////////////
+        // Determine dirichletBoundaryDofs //
+        //////////////////////////////////////////
+        MapPtr repeatedMap = MergeMaps(repeatedMapVec);
+        if (dirichletBoundaryDofsVec.is_null()) {
+            dirichletBoundaryDofsVec.resize(repeatedMapVec.size());
+            LOVecPtr counterSub(repeatedMapVec.size(),0);
+            for (UN j=0; j<dirichletBoundaryDofsVec.size(); j++) {
+                dirichletBoundaryDofsVec[j] = GOVecPtr(repeatedMapVec[j]->getNodeNumElements());
+            }
+            GOVecPtr dirichletBoundaryDofs = FindOneEntryOnlyRowsGlobal(this->K_,repeatedMap);
+            for (UN i=0; i<dirichletBoundaryDofs.size(); i++) {
+                LO subNumber = -1;
+                for (UN j = dofsMapsVec.size(); j > 0 ; j--) {
+                    for (UN k=0; k<dofsMapsVec[j-1].size(); k++) {
+                        if ( dirichletBoundaryDofs[i] <= dofsMapsVec[j-1][k]->getMaxAllGlobalIndex() ) {
+                            subNumber = j-1;
+                        }
+                    }
+                }
+                dirichletBoundaryDofsVec[subNumber][counterSub[subNumber]] = dirichletBoundaryDofs[i];
+                counterSub[subNumber]++;
+            }
+            
+            //dirichletBoundaryDofsVec = GOVecPtr2D(repeatedMapVec.size());
+            for (UN i=0; i<dirichletBoundaryDofsVec.size(); i++) {
+                dirichletBoundaryDofsVec[i].resize(counterSub[i]);
+            }
+            
+        }
+        ////////////////////////////////////
+        // Initialize OverlappingOperator //
+        ////////////////////////////////////
+        if (!this->ParameterList_->get("OverlappingOperator Type","AlgebraicOverlappingOperator").compare("AlgebraicOverlappingOperator")) {
+            AlgebraicOverlappingOperatorPtr algebraicOverlappigOperator = Teuchos::rcp_static_cast<AlgebraicOverlappingOperator<SC,LO,GO,NO> >(this->OverlappingOperator_);
+            if (0>algebraicOverlappigOperator->initialize(overlap,repeatedMap)) ret -= 1;
+        } else {
+            FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
+        }
+        
+        ///////////////////////////////
+        // Initialize CoarseOperator //
+        ///////////////////////////////
+        
+        if (this->ParameterList_->get("TwoLevel",true)){
+            if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
+                this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
+                // Build Null Space
+                if (!this->ParameterList_->get("Null Space Type","Stokes").compare("Stokes")) {
+                    nullSpaceBasisVec.resize(2);
+                    nullSpaceBasisVec[0] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[0],dofsPerNodeVec[0],dofsMapsVec[0]);
+                    nullSpaceBasisVec[1] = BuildNullSpace<SC,LO,GO,NO>(dimension,LaplaceNullSpace,repeatedMapVec[1],dofsPerNodeVec[1],dofsMapsVec[1]);
+                } else if (!this->ParameterList_->get("Null Space Type","Stokes").compare("Input")) {
+                    FROSCH_ASSERT(!nullSpaceBasisVec.is_null(),"Null Space Type is 'Input', but nullSpaceBasis.is_null().");
+                } else {
+                    FROSCH_ASSERT(false,"Null Space Type unknown.");
+                }
+                IPOUHarmonicCoarseOperatorPtr iPOUHarmonicCoarseOperator = Teuchos::rcp_static_cast<IPOUHarmonicCoarseOperator<SC,LO,GO,NO> >(CoarseOperator_);
+                if (0>iPOUHarmonicCoarseOperator->initialize(dimension,dofsPerNodeVec,repeatedNodesMapVec,dofsMapsVec,nullSpaceBasisVec,nodeListVec,dirichletBoundaryDofsVec)) ret -=10;
+            } else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("GDSWCoarseOperator")) {
+                this->ParameterList_->sublist("GDSWCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
+                GDSWCoarseOperatorPtr gDSWCoarseOperator = Teuchos::rcp_static_cast<GDSWCoarseOperator<SC,LO,GO,NO> >(CoarseOperator_);
+                if (0>gDSWCoarseOperator->initialize(dimension,dofsPerNodeVec,repeatedNodesMapVec,dofsMapsVec,dirichletBoundaryDofsVec,nodeListVec)) ret -=10;
+                
+            }
+            else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
+                this->ParameterList_->sublist("RGDSWCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
+                RGDSWCoarseOperatorPtr rGDSWCoarseOperator = Teuchos::rcp_static_cast<RGDSWCoarseOperator<SC,LO,GO,NO> >(CoarseOperator_);
+                if (0>rGDSWCoarseOperator->initialize(dimension,dofsPerNodeVec,repeatedNodesMapVec,dofsMapsVec,dirichletBoundaryDofsVec,nodeListVec)) ret -=10;
+            }
+            else {
+                FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
+            }
+        }
+        return ret;
+    }
     
     template <class SC,class LO,class GO,class NO>
     int TwoLevelBlockPreconditioner<SC,LO,GO,NO>::initialize(UN dimension,
@@ -91,6 +222,9 @@ namespace FROSch {
         ////////////
         // Checks //
         ////////////
+        
+        Teuchos::RCP< const Teuchos::Comm< int > > TC =repeatedMapVec[0]->getComm();
+        
         UN nmbBlocks = dofsPerNodeVec.size();
         for (UN i = 0; i < dofOrderingVec.size(); i++ ) {
             DofOrdering dofOrdering = dofOrderingVec[i];
@@ -176,9 +310,11 @@ namespace FROSch {
         } else {
             FROSCH_ASSERT(false,"OverlappingOperator Type unkown.");
         }
+       
         ///////////////////////////////
         // Initialize CoarseOperator //
         ///////////////////////////////
+        
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("IPOUHarmonicCoarseOperator")) {
                 this->ParameterList_->sublist("IPOUHarmonicCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
@@ -198,6 +334,7 @@ namespace FROSch {
                 this->ParameterList_->sublist("GDSWCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
                 GDSWCoarseOperatorPtr gDSWCoarseOperator = Teuchos::rcp_static_cast<GDSWCoarseOperator<SC,LO,GO,NO> >(CoarseOperator_);
                 if (0>gDSWCoarseOperator->initialize(dimension,dofsPerNodeVec,repeatedNodesMapVec,dofsMapsVec,dirichletBoundaryDofsVec,nodeListVec)) ret -=10;
+               
             }
             else if (!this->ParameterList_->get("CoarseOperator Type","IPOUHarmonicCoarseOperator").compare("RGDSWCoarseOperator")) {
                 this->ParameterList_->sublist("RGDSWCoarseOperator").sublist("CoarseSolver").sublist("MueLu").set("Dimension",(int)dimension);
@@ -207,7 +344,8 @@ namespace FROSch {
             else {
                 FROSCH_ASSERT(false,"CoarseOperator Type unkown.");
             }
-        }
+       }
+    
         return ret;
     }
     
@@ -216,6 +354,7 @@ namespace FROSch {
     {
         int ret = 0;
         if (0>this->OverlappingOperator_->compute()) ret -= 1;
+        
         if (this->ParameterList_->get("TwoLevel",true)) {
             if (0>CoarseOperator_->compute()) ret -= 10;
         }

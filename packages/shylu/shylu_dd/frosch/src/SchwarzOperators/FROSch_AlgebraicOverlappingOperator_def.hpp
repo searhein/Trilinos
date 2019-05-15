@@ -88,12 +88,12 @@ namespace FROSch {
         if (repeatedMap.is_null()) {
             repeatedMap = Xpetra::MapFactory<LO,GO,NO>::Build(this->K_->getRangeMap(),1);
         }
-		if(this->MpiComm_->getRank() == 0) std::cout<<"In Here "<<current_level<<" \n";
 		{
 		#ifdef FROSch_AlgebraicOverlappingTimers
 		Teuchos::TimeMonitor BuildOverlappingMatricesTimeMonitor(*BuildOverlappingMatricesTimer.at(current_level-1));
 		#endif
         this->buildOverlappingMatrices(overlap,repeatedMap);
+           
 		}
 		{
 	   #ifdef FROSch_AlgebraicOverlappingTimers
@@ -111,12 +111,12 @@ namespace FROSch {
     {
         FROSCH_ASSERT(this->IsInitialized_,"ERROR: AlgebraicOverlappingOperator has to be initialized before calling compute()");
         {
-			
 		#ifdef FROSch_AlgebraicOverlappingTimers
 		Teuchos::TimeMonitor ComputeOverlappingOperatorTimeMonitor(*ComputeOverlappingOperatorTimer.at(current_level-1));
 		#endif
 		this->computeOverlappingOperator();
         }
+        
         this->IsComputed_ = true;
         return 0; // RETURN VALUE!!!
     }

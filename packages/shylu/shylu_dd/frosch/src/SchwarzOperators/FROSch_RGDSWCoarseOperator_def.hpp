@@ -169,7 +169,7 @@ namespace FROSch {
                         this->InterfaceCoarseSpaces_[blockId]->addSubspace(coarseNodes->getEntityMap(),rotations[i]);
                     }
                 }
-                
+                //this->DofsPerNodeCoarse_= translations.size()+useRotations*rotations.size();
                 this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
                 
                 // Count entities

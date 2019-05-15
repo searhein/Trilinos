@@ -230,6 +230,35 @@ namespace FROSch {
          RGP->initialize(solverParameterList->get("Dimension",3),solverParameterList->get("DofsPerNode",1),dofOrdering,solverParameterList->get("Overlap",1),RepeatedMap,CoordinatesList);
         	
         }
+         else if(!ParameterList_->get("SolverType","Amesos").compare("TwoLevelBlockPreconditioner")) {
+             Teuchos::RCP< const Teuchos::Comm< int > > TC = K_->getMap()->getComm();
+             Teuchos::ArrayRCP<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > > RepeatedMaps = Teuchos::null;
+             UNVecPtr dofsPerNodeVector;
+             Teuchos::ArrayRCP<DofOrdering> dofOrderings;
+             FROSCH_ASSERT(ParameterList_->isParameter("Repeated Map Vector"),"Currently TwoLevelBlockPreconditioner cannot be constructed without Repeated Maps Vector ");
+             FROSCH_ASSERT(ParameterList_->isParameter("DofsPerNode Vector"),"Currently, TwoLevelBlockPreconditioner cannot be constructed without DofsPerNode Vector.");
+             FROSCH_ASSERT(ParameterList_->isParameter("DofOrdering Vector"),"Currently, TwoLevelBlockPreconditioner cannot be constructed without DofOrdering Vector.");
+             
+             if(ParameterList_->isParameter("Repeated Map Vector")) {
+                 RepeatedMaps = ExtractVectorFromParameterList<Teuchos::RCP<Xpetra::Map<LO,GO,NO> > >(*ParameterList_,"Repeated Map Vector");
+             }
+              if(ParameterList_->isParameter("DofsPerNode Vector")) {
+                 dofsPerNodeVector = ExtractVectorFromParameterList<UN>(*ParameterList_,"DofsPerNode Vector");
+              }
+              if(ParameterList_->isParameter("DofOrdering Vector")) {
+                 dofOrderings = ExtractVectorFromParameterList<DofOrdering>(*ParameterList_,"DofOrdering Vector");
+             }
+             
+             
+             FROSCH_ASSERT(RepeatedMaps.size()==dofsPerNodeVector.size(),"RepeatedMaps.size()!=dofsPerNodeVector.size()");
+             FROSCH_ASSERT(RepeatedMaps.size()==dofOrderings.size(),"RepeatedMaps.size()!=dofOrderings.size()");
+             TLBP = Teuchos::rcp(
+                                 new TwoLevelBlockPreconditioner<SC,LO,GO,NO>(K_,ParameterList_));
+             
+             TLBP->initialize(ParameterList_->get("Dimension",3),dofsPerNodeVector,dofOrderings,RepeatedMaps,ParameterList_->get("Overlap",1));
+             
+         }
+        
 #endif
         else {
             FROSCH_ASSERT(false,"SolverType unknown...");
@@ -266,6 +295,7 @@ namespace FROSch {
 #ifdef FROSch_MultiLevel
 		 GP.reset();
 		 RGP.reset();
+         TLBP.reset();
 #endif
     }
 
@@ -316,6 +346,10 @@ namespace FROSch {
         	 	IsInitialized_ = true;
             IsComputed_ = false;
 		}
+        else if(!ParameterList_->get("SolverType","Amesos").compare("TwoLevelBlockPreconditioner")){
+             IsInitialized_ = true;
+             IsComputed_ = false;
+         }
 #endif
       else {
             FROSCH_ASSERT(false,"SolverType unknown...");
@@ -331,9 +365,9 @@ namespace FROSch {
         if (!ParameterList_->get("SolverType","Amesos").compare("Amesos")) {
             IsComputed_ = true;
             AMESOS_CHK_ERR(AmesosSolver_->NumericFactorization());
-        } else
-#endif
-            if (!ParameterList_->get("SolverType","Amesos").compare("Amesos2")) {
+        }
+ #endif
+    else if (!ParameterList_->get("SolverType","Amesos").compare("Amesos2")) {
             if (K_->getRowMap()->lib()==Xpetra::UseEpetra) {
 #ifdef HAVE_SHYLU_DDFROSCH_EPETRA
                 IsComputed_ = true;
@@ -387,6 +421,11 @@ namespace FROSch {
         	 RGP->compute();
         	 IsComputed_ = true;
         }
+         else if(!ParameterList_->get("SolverType","Amesos").compare("TwoLevelBlockPreconditioner")) {
+             TLBP->compute();
+             IsComputed_ = true;
+             
+         }
 #endif  
        else {
             FROSCH_ASSERT(false,"SolverType unknown...");
@@ -513,6 +552,11 @@ namespace FROSch {
         	yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
         	RGP->apply(x,*yTmp,Teuchos::NO_TRANS);
         	y = *yTmp;
+        }
+        else if(!ParameterList_->get("SolverType","Amesos").compare("TwoLevelBlockPreconditioner")){
+            yTmp = Xpetra::MultiVectorFactory<SC,LO,GO,NO>::Build(y.getMap(),x.getNumVectors());
+            TLBP->apply(x,*yTmp,Teuchos::NO_TRANS);
+            y = *yTmp;
         }
 #endif
         else {

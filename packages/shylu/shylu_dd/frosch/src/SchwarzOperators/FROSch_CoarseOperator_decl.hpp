@@ -43,7 +43,7 @@
 #define _FROSCH_COARSEOPERATOR_DECL_HPP
 
 #include <FROSch_SchwarzOperator_def.hpp>
-#define FROSch_CoarseOperatorTimers
+//#define FROSch_CoarseOperatorTimers
 // TODO: Member sortieren!?
 
 
@@ -185,6 +185,7 @@ namespace FROSch {
         Teuchos::RCP<Xpetra::CrsMatrix<GO,LO,GO,NO> > GraphEntriesList_;
         
         ConstMapPtr kRowMap_;
+        LO DofsPerNodeCoarse_;
  
 #ifdef FROSch_CoarseOperatorTimers
 	 Teuchos::Array<TimePtr> ComputeTimer;

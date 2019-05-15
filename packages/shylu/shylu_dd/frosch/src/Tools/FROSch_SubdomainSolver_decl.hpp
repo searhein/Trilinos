@@ -127,6 +127,11 @@ namespace FROSch {
    class GO,
    class NO>
    class RGDSWPreconditioner;
+    template<class SC,
+    class LO,
+    class GO,
+    class NO>
+    class TwoLevelBlockPreconditioner;
    
    
 	
@@ -185,10 +190,14 @@ namespace FROSch {
         typedef Teuchos::RCP<MueLu::Hierarchy<SC,LO,GO,NO> > MueLuHierarchyPtr;
 #endif
 #ifdef HAVE_SHYLU_DDFROSCH_STRATIMIKOS
-
+        typedef unsigned UN;
         typedef typename Teuchos::RCP<Stratimikos::DefaultLinearSolverBuilder> SolverBuilderPtr;
         typedef typename Teuchos::RCP<Thyra::LinearOpWithSolveBase<SC> > ThyraSolveBasePtr;
         typedef Xpetra::ThyraUtils<SC,LO,GO,NO>       XpThyUtils;
+        typedef Teuchos::ArrayRCP<UN> UNVecPtr;
+        //typedef typename Teuchos::ArrayRCP<DofOrdering> DofOrderingVecPtr;
+
+
 #endif
 
         /*!
@@ -319,6 +328,7 @@ namespace FROSch {
 #ifdef FROSch_MultiLevel
       Teuchos::RCP<GDSWPreconditioner<SC,LO,GO,NO> > GP;
       Teuchos::RCP<RGDSWPreconditioner<SC,LO,GO,NO> > RGP;
+      Teuchos::RCP<TwoLevelBlockPreconditioner<SC,LO,GO,NO> > TLBP;
 #endif
 
         

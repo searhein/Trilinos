@@ -44,7 +44,7 @@
 
 #include <FROSch_SchwarzOperator_def.hpp>
 
-#define FROSch_OverlappingOperatorTimers
+//#define FROSch_OverlappingOperatorTimers
 namespace FROSch {
     
     template <class SC = Xpetra::Operator<>::scalar_type,

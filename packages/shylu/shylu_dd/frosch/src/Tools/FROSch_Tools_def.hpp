@@ -561,7 +561,11 @@ namespace FROSch {
     {
         FROSCH_ASSERT(dofOrdering==0 || dofOrdering==1,"ERROR: Specify a valid DofOrdering.");
         FROSCH_ASSERT(!nodesMap.is_null(),"nodesMap.is_null().");
-        
+        Teuchos::RCP<const Teuchos::Comm< int > > TC = nodesMap->getComm();
+        Teuchos::RCP<Teuchos::FancyOStream> fancy = Teuchos::fancyOStream(Teuchos::rcpFromRef(cout));        
+        TC->barrier();TC->barrier();TC->barrier();
+        //if(TC->getRank() == 0) std::cout << TC->getRank() << " Tools1\n";
+        std::cout << TC->getRank() << " dofOrdering " << dofOrdering << " Tools1\n";
         unsigned numNodes = nodesMap->getNodeNumElements();
         Teuchos::Array<GO> globalIDs(dofsPerNode*numNodes);
         if (dofOrdering==0) {
@@ -570,16 +574,27 @@ namespace FROSch {
                     globalIDs[dofsPerNode*j+i] = dofsPerNode*nodesMap->getGlobalElement(j)+i;
                 }
             }
+            TC->barrier();TC->barrier();TC->barrier();
+            if(TC->getRank() == 0) std::cout<<"Tools2.1\n";
         } else if (dofOrdering == 1) {
             for (unsigned i=0; i<dofsPerNode; i++) {
                 for (unsigned j=0; j<numNodes; j++) {
-                    globalIDs[j+i*numNodes] = nodesMap->getGlobalElement(j)+i*nodesMap->getGlobalNumElements();
+                    globalIDs[j+i*numNodes] = nodesMap->getGlobalElement(j)+i*(nodesMap->getMaxAllGlobalIndex()+1); //MaxIndex-1
+                    //std::cout << TC->getRank() << " index " << j+i*numNodes << " length " << dofsPerNode*numNodes << " value " << globalIDs[j+i*numNodes] << "\n";
                 }
             }
+            TC->barrier();TC->barrier();TC->barrier();
+            if(TC->getRank() == 0) std::cout<<"Tools2.2\n";
+            
         } else {
             FROSCH_ASSERT(false,"dofOrdering unknown.");
         }
-        return Xpetra::MapFactory<LO,GO,NO>::Build(nodesMap->lib(),-1,globalIDs(),0,nodesMap->getComm());
+   
+        Teuchos::RCP<Xpetra::Map<LO,GO,NO> > mainMap = Xpetra::MapFactory<LO,GO,NO>::Build(nodesMap->lib(),-1,globalIDs(),0,TC);
+        TC->barrier();TC->barrier();TC->barrier();
+        if(TC->getRank() == 0) std::cout<<"Tools4\n";
+        //mainMap->describe(*fancy,Teuchos::VERB_EXTREME);
+        return mainMap;
     }
     
 //    template <class LO,class GO,class NO>

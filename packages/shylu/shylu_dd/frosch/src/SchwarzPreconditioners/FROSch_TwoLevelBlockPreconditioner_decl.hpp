@@ -95,6 +95,17 @@ namespace FROSch {
                        MapPtrVecPtr2D dofsMapsVec = Teuchos::null,
                        GOVecPtr2D dirichletBoundaryDofsVec = Teuchos::null);
         
+        int initialize(UN dimension,
+                       UNVecPtr dofsPerNodeVec,
+                       DofOrderingVecPtr dofOrderingVec,
+                       MapPtrVecPtr repeatedNodesMapVec,
+                       int overlap = -1,
+                       MapPtrVecPtr repeatedMapVec = Teuchos::null,
+                       MultiVectorPtrVecPtr nullSpaceBasisVec = Teuchos::null,
+                       MultiVectorPtrVecPtr nodeListVec = Teuchos::null,
+                       MapPtrVecPtr2D dofsMapsVec = Teuchos::null,
+                       GOVecPtr2D dirichletBoundaryDofsVec = Teuchos::null);
+        
         int compute();
         
         void describe(Teuchos::FancyOStream &out,

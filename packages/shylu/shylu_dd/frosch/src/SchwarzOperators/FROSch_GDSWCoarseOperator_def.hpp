@@ -72,6 +72,7 @@ namespace FROSch {
     int GDSWCoarseOperator<SC,LO,GO,NO>::initialize(UN dimension,
                                                     MapPtr repeatedMap)
     {
+        
         buildCoarseSpace(dimension,repeatedMap);
         this->IsInitialized_ = true;
         this->IsComputed_ = false;
@@ -83,6 +84,8 @@ namespace FROSch {
                                                     MapPtr repeatedMap,
                                                     GOVecPtr dirichletBoundaryDofs)
     {
+        
+        
         buildCoarseSpace(dimension,repeatedMap,dirichletBoundaryDofs);
         this->IsInitialized_ = true;
         this->IsComputed_ = false;
@@ -95,6 +98,7 @@ namespace FROSch {
                                                     MapPtr repeatedNodesMap,
                                                     MapPtrVecPtr repeatedDofMaps)
     {
+        
         buildCoarseSpace(dimension,dofsPerNode,repeatedNodesMap,repeatedDofMaps);
         this->IsInitialized_ = true;
         this->IsComputed_ = false;
@@ -211,6 +215,7 @@ namespace FROSch {
                                                           MapPtrVecPtr dofsMaps,
                                                           GOVecPtr dirichletBoundaryDofs)
     {        
+        
         MultiVectorPtr nodeList;
         buildCoarseSpace(dimension,dofsPerNode,nodesMap,dofsMaps,dirichletBoundaryDofs,nodeList);
         
@@ -239,7 +244,7 @@ namespace FROSch {
                                                           MultiVectorPtr nodeList)
     {	
 		{
-		
+           
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         
         // Das könnte man noch ändern
@@ -268,6 +273,7 @@ namespace FROSch {
                                                           GOVecPtr2D dirichletBoundaryDofsVec,
                                                           MultiVectorPtrVecPtr nodeListVec)
     {
+        
         // Das könnte man noch ändern
         // TODO: DAS SOLLTE ALLES IN EINE FUNKTION IN HARMONICCOARSEOPERATOR
         for (UN i=0; i<repeatedNodesMapVec.size(); i++) {
@@ -299,13 +305,13 @@ namespace FROSch {
 		#endif
         FROSCH_ASSERT(dofsMaps.size()==dofsPerNode,"dofsMaps.size()!=dofsPerNode");
         FROSCH_ASSERT(blockId<this->NumberOfBlocks_,"Block does not exist yet and can therefore not be reset.");
-        
+       
         // Process the parameter list
         std::stringstream blockIdStringstream;
         blockIdStringstream << blockId+1;
         std::string blockIdString = blockIdStringstream.str();
         Teuchos::RCP<Teuchos::ParameterList> coarseSpaceList = sublist(sublist(this->ParameterList_,"Blocks"),blockIdString.c_str());
-        
+       
         bool useForCoarseSpace = coarseSpaceList->get("Use For Coarse Space",true);
         
         bool useVertexTranslations = coarseSpaceList->sublist("Custom").get("Vertices: translations",true);
@@ -327,6 +333,7 @@ namespace FROSch {
             useRotations = false;
             if (this->Verbose_) std::cout << "\nWarning: Rotations cannot be used!\n";
         }
+        
         if (!useRotations) {
             useShortEdgeRotations = false;
             useStraightEdgeRotations = false;
@@ -339,14 +346,14 @@ namespace FROSch {
         
         Teuchos::Array<GO> tmpDirichletBoundaryDofs(dirichletBoundaryDofs()); // Here, we do a copy. Maybe, this is not necessary
         sortunique(tmpDirichletBoundaryDofs);
-        
+       
         DDInterface_.reset(new DDInterface<SC,LO,GO,NO>(dimension,this->DofsPerNode_[blockId],nodesMap));
         DDInterface_->resetGlobalDofs(dofsMaps);
         DDInterface_->removeDirichletNodes(tmpDirichletBoundaryDofs());
         if (this->ParameterList_->get("Test Unconnected Interface",true)) {
             DDInterface_->divideUnconnectedEntities(this->K_);
         }
-        
+       
         DDInterface_->sortVerticesEdgesFaces(nodeList);
         
         EntitySetPtr vertices,shortEdges,straightEdges,edges,faces,interface,interior;
@@ -368,7 +375,7 @@ namespace FROSch {
                     this->IDofs_[blockId][this->DofsPerNode_[blockId]*i+k] = interior->getEntity(0)->getLocalDofID(i,k);
                 }
             }
-            
+           
             this->InterfaceCoarseSpaces_[blockId].reset(new CoarseSpace<SC,LO,GO,NO>());
             
             if (useForCoarseSpace && (useVertexTranslations||useShortEdgeTranslations||useShortEdgeRotations||useStraightEdgeTranslations||useStraightEdgeRotations||useEdgeTranslations||useEdgeRotations||useFaceTranslations||useFaceRotations)) {
@@ -386,6 +393,7 @@ namespace FROSch {
                         this->InterfaceCoarseSpaces_[blockId]->addSubspace(vertices->getEntityMap(),translations[i]);
                     }
                 }
+              
                 // ShortEdges
                 if (useShortEdgeTranslations || useShortEdgeRotations) {
                     shortEdges = DDInterface_->getShortEdges();
@@ -404,6 +412,7 @@ namespace FROSch {
                         }
                     }
                 }
+                
                 // StraightEdges
                 if (useStraightEdgeTranslations || useStraightEdgeRotations) {
                     straightEdges = DDInterface_->getStraightEdges();
@@ -422,6 +431,7 @@ namespace FROSch {
                         }
                     }
                 }
+                
                 // Edges
                 if (useEdgeTranslations || useEdgeRotations) {
                     edges = DDInterface_->getEdges();
@@ -440,6 +450,7 @@ namespace FROSch {
                         }
                     }
                 }
+               
                 // Faces
                 if (useFaceTranslations || useFaceRotations) {
                     faces = DDInterface_->getFaces();
@@ -458,7 +469,7 @@ namespace FROSch {
                         }
                     }
                 }
-                
+               
                 this->InterfaceCoarseSpaces_[blockId]->assembleCoarseSpace();
                 
                 // Count entities

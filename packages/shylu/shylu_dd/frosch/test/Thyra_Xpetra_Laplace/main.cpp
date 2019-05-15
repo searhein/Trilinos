@@ -314,7 +314,7 @@ int main(int argc, char *argv[])
         RCP<ParameterList> plList =  sublist(parameterList,"Preconditioner Types");
         sublist(plList,"FROSch")->set("Dimension",Dimension);
         sublist(plList,"FROSch")->set("Overlap",Overlap);
-        if (NumberOfBlocks>1) {
+        //if (NumberOfBlocks>1) {
             sublist(plList,"FROSch")->set("Repeated Map Vector",RepeatedMaps);
             
             ArrayRCP<DofOrdering> dofOrderings(NumberOfBlocks);
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
             
             sublist(plList,"FROSch")->set("DofOrdering Vector",dofOrderings);
             sublist(plList,"FROSch")->set("DofsPerNode Vector",dofsPerNodeVector);
-        } else if (NumberOfBlocks==1) {
+        /*} else if (NumberOfBlocks==1) {
             sublist(plList,"FROSch")->set("Repeated Map",RepeatedMaps[0]);
             // sublist(plList,"FROSch")->set("Coordinates List",Coordinates[0]); // Does not work yet...
             
@@ -348,7 +348,7 @@ int main(int argc, char *argv[])
             sublist(plList,"FROSch")->set("DofsPerNode",DofsPerNode);
         } else {
             assert(false);
-        }
+        }*/
         
         Comm->barrier();
         if(Comm->getRank()==0) {

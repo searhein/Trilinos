@@ -63,7 +63,6 @@
                 <ParameterList name="CoarseSolver">
                     <Parameter name="SolverType"                                type="string"   value="GDSWPreconditioner"/>
    					  <ParameterList name="GDSWPC">
-   					  
    					   <ParameterList name="OneLevelOperator">
                 			<ParameterList name="Solver">
                    			 <Parameter name="SolverType"                                type="string"   value="Amesos2"/>
