@@ -2,7 +2,7 @@
     <Parameter name="Linear Solver Type" type="string" value="Belos"/>
     <ParameterList name="Linear Solver Types">
         <ParameterList name="Belos">
-            <Parameter name="Solver Type" type="string" value="Block GMRES"/>
+            <Parameter name="Solver Type" type="string" value="Fixed Point"/>
             <ParameterList name="Solver Types">
                 <ParameterList name="Block GMRES">
                     <Parameter name="PreconditionerPosition" type="string" value="left"/>

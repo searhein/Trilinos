@@ -373,6 +373,11 @@ int main(int argc, char *argv[])
         RCP<LinearOpWithSolveBase<SC> > lows =
         linearOpWithSolve(*lowsFactory, K_thyra);
 
+        // turn on one-sided communication
+        RCP<ParameterList> matvecParams = rcp(new ParameterList("matvec params"));
+        matvecParams->set("Send type","One-sided");
+        KMonolithic->getCrsGraph()->getImporter()->setDistributorParameters(matvecParams);
+
         Comm->barrier(); if (Comm->getRank()==0) cout << "\n#########\n# Solve #\n#########" << endl;
         SolveStatus<double> status =
         solve<double>(*lows, Thyra::NOTRANS, *thyraB, thyraX.ptr());
