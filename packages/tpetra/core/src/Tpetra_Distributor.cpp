@@ -68,6 +68,9 @@ namespace Tpetra {
       else if (sendType == DISTRIBUTOR_ALLTOALL) {
         return "Alltoall";
       }
+      else if (sendType == DISTRIBUTOR_ONESIDED) {
+        return "One-sided";
+      }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument, "Invalid "
           "EDistributorSendType enum value " << sendType << ".");
@@ -106,6 +109,7 @@ namespace Tpetra {
     sendTypes.push_back ("Ssend");
     sendTypes.push_back ("Persistent");
     sendTypes.push_back ("Alltoall");
+    sendTypes.push_back ("One-sided");
     return sendTypes;
   }
 
@@ -385,6 +389,7 @@ namespace Tpetra {
     sendTypeEnums.push_back (Details::DISTRIBUTOR_SSEND);
     sendTypeEnums.push_back (Details::DISTRIBUTOR_PERSISTENT);
     sendTypeEnums.push_back (Details::DISTRIBUTOR_ALLTOALL);
+    sendTypeEnums.push_back (Details::DISTRIBUTOR_ONESIDED);
 
     RCP<ParameterList> plist = parameterList ("Tpetra::Distributor");
     plist->set ("Barrier between receives and sends", barrierBetween,

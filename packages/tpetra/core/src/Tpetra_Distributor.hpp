@@ -86,7 +86,8 @@ namespace Tpetra {
       DISTRIBUTOR_SEND,  // Use MPI_Send (Teuchos::send)
       DISTRIBUTOR_SSEND, // Use MPI_Ssend (Teuchos::ssend)
       DISTRIBUTOR_PERSISTENT,  // Use MPI persistent send
-      DISTRIBUTOR_ALLTOALL     // Use MPI Alltoall
+      DISTRIBUTOR_ALLTOALL,    // Use MPI Alltoall
+      DISTRIBUTOR_ONESIDED     // Use MPI one-sided communication
     };
 
     /// \brief Convert an EDistributorSendType enum value to a string.
@@ -954,6 +955,11 @@ namespace Tpetra {
 
     /// \brief Communication requests associated with persistent receives and sends.
     Teuchos::Array<Teuchos::RCP<Teuchos::CommRequest<int> > > persistentRequests_;
+
+    /// \brief MPI window for use with one-sided communication.
+    MPI_Win Win_;
+
+    Teuchos::Array<int> remoteOffsets_;
 
     /// \brief The reverse distributor.
     ///
@@ -2386,9 +2392,14 @@ namespace Tpetra {
       *out_ << os.str ();
     }
 
-    const bool setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
-                                 (persistentRequests_.size() == 0)) &&
-                                (sendType != Details::DISTRIBUTOR_ALLTOALL));
+    bool setupRequests;
+    if ((sendType == Details::DISTRIBUTOR_ALLTOALL) ||
+        (sendType == Details::DISTRIBUTOR_ONESIDED))
+      setupRequests = false;
+    else
+      setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
+                        (persistentRequests_.size() == 0)));
+
 
     // Post the nonblocking receives.  It's common MPI wisdom to post
     // receives before sends.  In MPI terms, this means favoring
@@ -2479,6 +2490,65 @@ namespace Tpetra {
       procIndex = 0;
     }
 
+    if (sendType == Details::DISTRIBUTOR_ONESIDED && remoteOffsets_.size() == 0) {
+      typedef typename ExpView::non_const_value_type Packet;
+      using Kokkos::Compat::persistingView;
+
+      Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+      size_t commSize = comm_->getSize();
+
+      // prepare offsets
+      Teuchos::ArrayRCP<int> localOffsets, sendcounts, sdispls, recvcounts, rdispls;
+      localOffsets.resize(commSize);
+      remoteOffsets_.resize(commSize);
+      sendcounts.resize(commSize);
+      sdispls.resize(commSize);
+
+      recvcounts.resize(commSize);
+      rdispls.resize(commSize);
+
+      for (size_t i = 0; i < commSize; i++) {
+        sendcounts[i] = 0;
+        sdispls[i] = i;
+        recvcounts[i] = 0;
+        rdispls[i] = i;
+      }
+
+      size_t curBufferOffset = 0;
+      for (size_type i = 0; i < actualNumReceives; ++i) {
+        const size_t curBufLen = lengthsFrom_[i] * numPackets;
+        if (procsFrom_[i] != myRank) {
+          localOffsets[procsFrom_[i]] = curBufferOffset;
+          sendcounts[procsFrom_[i]] = 1;
+        }
+        else { // Receiving from myself
+          selfReceiveOffset = curBufferOffset; // Remember the self-recv offset
+        }
+        curBufferOffset += curBufLen;
+      }
+
+      for (size_t i = 0; i < numBlocks; ++i) {
+        size_t p = i + procIndex;
+        if (p > (numBlocks - 1)) {
+          p -= numBlocks;
+        }
+
+        if (procsTo_[p] != myRank) {
+          recvcounts[procsTo_[p]] = 1;
+        }
+      }
+
+      // exchange offsets
+      MPI_Alltoallv(localOffsets.getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_INT,
+                    remoteOffsets_.getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_INT,
+                    *rawComm);
+
+      // create window
+      MPI_Win_create(persistingView (imports).getRawPtr(),imports.size(),sizeof(Packet),MPI_INFO_NULL,*rawComm,&Win_);
+      MPI_Win_lock_all(0,Win_);
+
+    }
+
     size_t selfNum = 0;
     size_t selfIndex = 0;
 
@@ -2548,6 +2618,16 @@ namespace Tpetra {
             }
           } else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
             // nothing to do
+          }
+          else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+            typedef typename ExpView::non_const_value_type Packet;
+
+            int ierr = MPI_Put(Kokkos::Compat::persistingView(tmpSend).getRawPtr(),sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                               procsTo_[p],
+                               remoteOffsets_[procsTo_[p]],sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                               Win_);
+            TEUCHOS_ASSERT(ierr == MPI_SUCCESS);
+
           } else {
             TEUCHOS_TEST_FOR_EXCEPTION(
               true,
@@ -2618,6 +2698,11 @@ namespace Tpetra {
                       *rawComm);
 
       }
+      else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+        MPI_Win_flush_all(Win_);
+        comm_->barrier();
+      }
+
 
       if (selfMessage_) {
         if (verbose_) {
@@ -2897,9 +2982,13 @@ namespace Tpetra {
       as<size_type> (selfMessage_ ? 1 : 0);
     requests_.resize (0);
 
-    const bool setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
-                                 (persistentRequests_.size() == 0)) &&
-                                (sendType != Details::DISTRIBUTOR_ALLTOALL));
+    bool setupRequests;
+    if ((sendType == Details::DISTRIBUTOR_ALLTOALL) ||
+        (sendType == Details::DISTRIBUTOR_ONESIDED))
+      setupRequests = false;
+    else
+      setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
+                        (persistentRequests_.size() == 0)));
 
     // Post the nonblocking receives.  It's common MPI wisdom to post
     // receives before sends.  In MPI terms, this means favoring
@@ -2987,6 +3076,71 @@ namespace Tpetra {
       procIndex = 0;
     }
 
+    if (sendType == Details::DISTRIBUTOR_ONESIDED && remoteOffsets_.size() == 0) {
+      typedef typename ExpView::non_const_value_type Packet;
+      using Kokkos::Compat::persistingView;
+
+      Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+      size_t commSize = comm_->getSize();
+
+      // prepare offsets
+      Teuchos::ArrayRCP<int> localOffsets, sendcounts, sdispls, recvcounts, rdispls;
+      localOffsets.resize(commSize);
+      remoteOffsets_.resize(commSize);
+      sendcounts.resize(commSize);
+      sdispls.resize(commSize);
+
+      recvcounts.resize(commSize);
+      rdispls.resize(commSize);
+
+      for (size_t i = 0; i < commSize; i++) {
+        sendcounts[i] = 0;
+        sdispls[i] = i;
+        recvcounts[i] = 0;
+        rdispls[i] = i;
+      }
+
+      size_t curBufferOffset = 0;
+      size_t curLIDoffset = 0;
+      for (size_type i = 0; i < actualNumReceives; ++i) {
+        size_t totalPacketsFrom_i = 0;
+        for (size_t j = 0; j < lengthsFrom_[i]; ++j) {
+          totalPacketsFrom_i += numImportPacketsPerLID[curLIDoffset+j];
+        }
+        curLIDoffset += lengthsFrom_[i];
+        if (procsFrom_[i] != myProcID && totalPacketsFrom_i) {
+          localOffsets[procsFrom_[i]] = curBufferOffset;
+          sendcounts[procsFrom_[i]] = 1;
+        }
+        else { // Receiving these packet(s) from myself
+          selfReceiveOffset = curBufferOffset; // Remember the offset
+        }
+        curBufferOffset += totalPacketsFrom_i;
+      }
+
+      for (size_t i = 0; i < numBlocks; ++i) {
+        size_t p = i + procIndex;
+        if (p > (numBlocks - 1)) {
+          p -= numBlocks;
+        }
+
+        if (procsTo_[p] != myProcID && packetsPerSend[p] > 0) {
+          recvcounts[procsTo_[p]] = 1;
+        }
+      }
+
+      // exchange offsets
+      MPI_Alltoallv(localOffsets.getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_INT,
+                    remoteOffsets_.getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_INT,
+                    *rawComm);
+
+
+      // create window
+      MPI_Win_create(persistingView (imports).getRawPtr(),imports.size(),sizeof(Packet),MPI_INFO_NULL,*rawComm,&Win_);
+      MPI_Win_lock_all(0,Win_);
+
+    }
+
     size_t selfNum = 0;
     size_t selfIndex = 0;
     if (indicesTo_.empty()) {
@@ -3040,6 +3194,14 @@ namespace Tpetra {
           }
           else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
             // nothing to do
+          }
+          else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+            typedef typename ExpView::non_const_value_type Packet;
+
+            MPI_Put(Kokkos::Compat::persistingView(tmpSend).getRawPtr(),sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                    procsTo_[p],
+                    remoteOffsets_[procsTo_[p]],sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                    Win_);
           }
           else {
             TEUCHOS_TEST_FOR_EXCEPTION(
@@ -3115,6 +3277,10 @@ namespace Tpetra {
         MPI_Alltoallv(persistingView (exports).getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_CHAR,
                       persistingView (imports).getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_CHAR,
                       *rawComm);
+      }
+      else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+        MPI_Win_flush_all(Win_);
+        comm_->barrier();
       }
 
       if (selfMessage_) {
