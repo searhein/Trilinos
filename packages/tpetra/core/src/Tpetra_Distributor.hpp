@@ -959,6 +959,9 @@ namespace Tpetra {
     /// \brief MPI window for use with one-sided communication.
     MPI_Win Win_;
 
+    //! Whether to do a barrier for one-sided communication.
+    bool barrierOneSided_;
+
     Teuchos::Array<int> remoteOffsets_;
 
     /// \brief The reverse distributor.
@@ -2700,7 +2703,8 @@ namespace Tpetra {
       }
       else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
         MPI_Win_flush_all(Win_);
-        comm_->barrier();
+        if (barrierOneSided_)
+          comm_->barrier();
       }
 
 
@@ -3280,7 +3284,8 @@ namespace Tpetra {
       }
       else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
         MPI_Win_flush_all(Win_);
-        comm_->barrier();
+        if (barrierOneSided_)
+          comm_->barrier();
       }
 
       if (selfMessage_) {
