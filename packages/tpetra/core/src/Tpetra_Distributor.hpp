@@ -69,6 +69,10 @@
 #include <sstream>
 #include <type_traits>
 
+#include <Teuchos_DefaultMpiComm.hpp>
+#include <Teuchos_OpaqueWrapper.hpp>
+#include "mpi.h"
+
 namespace Tpetra {
 
   namespace Details {
@@ -80,7 +84,10 @@ namespace Tpetra {
       DISTRIBUTOR_ISEND, // Use MPI_Isend (Teuchos::isend)
       DISTRIBUTOR_RSEND, // Use MPI_Rsend (Teuchos::readySend)
       DISTRIBUTOR_SEND,  // Use MPI_Send (Teuchos::send)
-      DISTRIBUTOR_SSEND  // Use MPI_Ssend (Teuchos::ssend)
+      DISTRIBUTOR_SSEND, // Use MPI_Ssend (Teuchos::ssend)
+      DISTRIBUTOR_PERSISTENT,  // Use MPI persistent send
+      DISTRIBUTOR_ALLTOALL,    // Use MPI Alltoall
+      DISTRIBUTOR_ONESIDED     // Use MPI one-sided communication
     };
 
     /// \brief Convert an EDistributorSendType enum value to a string.
@@ -261,7 +268,10 @@ namespace Tpetra {
     ///
     /// \pre No outstanding communication requests.
     ///   (We could check, but see GitHub Issue #1303.)
-    virtual ~Distributor () = default;
+    ~Distributor () {
+      for (int i = 0; i<persistentRequests_.size(); i++)
+        persistentRequests_[i]->free();
+    };
 
     /// \brief Swap the contents of rhs with those of *this.
     ///
@@ -943,6 +953,17 @@ namespace Tpetra {
     ///   receive and send requests.
     Teuchos::Array<Teuchos::RCP<Teuchos::CommRequest<int> > > requests_;
 
+    /// \brief Communication requests associated with persistent receives and sends.
+    Teuchos::Array<Teuchos::RCP<Teuchos::CommRequest<int> > > persistentRequests_;
+
+    /// \brief MPI window for use with one-sided communication.
+    MPI_Win Win_;
+
+    //! Whether to do a barrier for one-sided communication.
+    bool barrierOneSided_;
+
+    Teuchos::Array<int> remoteOffsets_;
+
     /// \brief The reverse distributor.
     ///
     /// This is created on demand in getReverse() and cached for
@@ -1142,6 +1163,8 @@ namespace Tpetra {
     using Teuchos::includesVerbLevel;
     using Teuchos::ireceive;
     using Teuchos::isend;
+    using Teuchos::receiveInit;
+    using Teuchos::sendInit;
     using Teuchos::OSTab;
     using Teuchos::readySend;
     using Teuchos::send;
@@ -1241,12 +1264,16 @@ namespace Tpetra {
       *out_ << os.str ();
     }
 
+    const bool setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
+                                 (persistentRequests_.size() == 0)) &&
+                                (sendType != Details::DISTRIBUTOR_ALLTOALL));
+
     // Post the nonblocking receives.  It's common MPI wisdom to post
     // receives before sends.  In MPI terms, this means favoring
     // adding to the "posted queue" (of receive requests) over adding
     // to the "unexpected queue" (of arrived messages not yet matched
     // with a receive).
-    {
+    if (setupRequests) {
 #ifdef TPETRA_DISTRIBUTOR_TIMERS
       Teuchos::TimeMonitor timeMonRecvs (*timer_doPosts3_recvs_);
 #endif // TPETRA_DISTRIBUTOR_TIMERS
@@ -1279,8 +1306,12 @@ namespace Tpetra {
             << ").");
           ArrayRCP<Packet> recvBuf =
             imports.persistingView (curBufOffset, curBufLen);
-          requests_.push_back (ireceive<int, Packet> (recvBuf, procsFrom_[i],
-                                                      tag, *comm_));
+          if (sendType != Details::DISTRIBUTOR_PERSISTENT)
+            requests_.push_back (ireceive<int, Packet> (recvBuf, procsFrom_[i],
+                                                        tag, *comm_));
+          else
+            persistentRequests_.push_back(receiveInit<int, Packet> (recvBuf, procsFrom_[i],
+                                                                    tag, *comm_));
         }
         else { // Receiving from myself
           selfReceiveOffset = curBufOffset; // Remember the self-recv offset
@@ -1377,6 +1408,18 @@ namespace Tpetra {
             ssend<int, Packet> (tmpSend.getRawPtr (),
                                 as<int> (tmpSend.size ()),
                                 procsTo_[p], tag, *comm_);
+          }
+          else if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+            if (setupRequests) {
+              ArrayRCP<const Packet> sendBuf =
+                exports.persistingView (startsTo_[p] * numPackets,
+                                        lengthsTo_[p] * numPackets);
+              persistentRequests_.push_back(sendInit<int, Packet> (sendBuf, procsTo_[p],
+                                                                   tag, *comm_));
+            }
+          }
+          else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+            // nothing to do
           } else {
             TEUCHOS_TEST_FOR_EXCEPTION(
               true, std::logic_error,
@@ -1388,6 +1431,57 @@ namespace Tpetra {
         else { // "Sending" the message to myself
           selfNum = p;
         }
+      }
+
+      if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+        // start the persistent send and receive requests
+        if (verbose_) {
+          std::ostringstream os;
+          os << *prefix << ": Starting persistent requests" << endl;
+          *out_ << os.str ();
+        }
+        startAll(*comm_, persistentRequests_());
+      } else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+        ArrayRCP<int> sendcounts, sdispls, recvcounts, rdispls;
+        sendcounts.resize(comm_->getSize());
+        sdispls.resize(comm_->getSize());
+        recvcounts.resize(comm_->getSize());
+        rdispls.resize(comm_->getSize());
+
+        size_t curBufOffset = 0;
+        for (size_type i = 0; i < actualNumReceives; ++i) {
+          const size_t curBufLen = lengthsFrom_[i] * numPackets;
+          if (procsFrom_[i] != myRank) {
+            rdispls[procsFrom_[i]] = curBufOffset * sizeof(Packet);
+            recvcounts[procsFrom_[i]] = curBufLen * sizeof(Packet);
+          }
+          else { // Receiving from myself
+            selfReceiveOffset = curBufOffset; // Remember the self-recv offset
+          }
+          curBufOffset += curBufLen;
+        }
+
+        for (size_t i = 0; i < numBlocks; ++i) {
+          size_t p = i + procIndex;
+          if (p > (numBlocks - 1)) {
+            p -= numBlocks;
+          }
+          sdispls[procsTo_[p]] = startsTo_[p] * numPackets * sizeof(Packet);
+          sendcounts[procsTo_[p]] = lengthsTo_[p] * numPackets * sizeof(Packet);
+        }
+
+        Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+
+        if (verbose_) {
+          std::ostringstream os;
+          os << *prefix << "Fast: Alltoallv" << endl;
+          *out_ << os.str ();
+        }
+        Teuchos::ConstValueTypeSerializationBuffer<int,Packet> charSendBuffer(exports.size(), exports.getRawPtr());
+        Teuchos::ValueTypeSerializationBuffer<int,Packet> charRecvBuffer(imports.size(), imports.getRawPtr());
+        MPI_Alltoallv(charSendBuffer.getCharBuffer(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_CHAR,
+                      charRecvBuffer.getCharBuffer(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_CHAR,
+                      *rawComm);
       }
 
       if (selfMessage_) {
@@ -1418,6 +1512,13 @@ namespace Tpetra {
         "Tpetra::Distributor::doPosts(3 args, Teuchos::ArrayRCP): "
         "The \"send buffer\" code path doesn't currently work with "
         "nonblocking sends.");
+
+      // FIXME (CAG 01 April 2019) This does not work for Persistent.
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        sendType == Details::DISTRIBUTOR_PERSISTENT,
+        std::logic_error,
+        "Tpetra::Distributor::doPosts(3 args, Teuchos::ArrayRCP): The \"send buffer\" code path "
+        "doesn't currently work with persistent send requests.");
 
       for (size_t i = 0; i < numBlocks; ++i) {
         size_t p = i + procIndex;
@@ -1516,6 +1617,8 @@ namespace Tpetra {
     using Teuchos::as;
     using Teuchos::ireceive;
     using Teuchos::isend;
+    using Teuchos::receiveInit;
+    using Teuchos::sendInit;
     using Teuchos::readySend;
     using Teuchos::send;
     using Teuchos::ssend;
@@ -1627,12 +1730,16 @@ namespace Tpetra {
       as<size_type> (selfMessage_ ? 1 : 0);
     requests_.resize (0);
 
+    const bool setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
+                                 (persistentRequests_.size() == 0)) &&
+                                (sendType != Details::DISTRIBUTOR_ALLTOALL));
+
     // Post the nonblocking receives.  It's common MPI wisdom to post
     // receives before sends.  In MPI terms, this means favoring
     // adding to the "posted queue" (of receive requests) over adding
     // to the "unexpected queue" (of arrived messages not yet matched
     // with a receive).
-    {
+    if (setupRequests) {
 #ifdef TPETRA_DISTRIBUTOR_TIMERS
       Teuchos::TimeMonitor timeMonRecvs (*timer_doPosts4_recvs_);
 #endif // TPETRA_DISTRIBUTOR_TIMERS
@@ -1656,8 +1763,12 @@ namespace Tpetra {
           // 2. Start the Irecv and save the resulting request.
           ArrayRCP<Packet> recvBuf =
             imports.persistingView (curBufferOffset, totalPacketsFrom_i);
-          requests_.push_back (ireceive<int, Packet> (recvBuf, procsFrom_[i],
-                                                      tag, *comm_));
+          if (sendType != Details::DISTRIBUTOR_PERSISTENT)
+            requests_.push_back (ireceive<int, Packet> (recvBuf, procsFrom_[i],
+                                                        tag, *comm_));
+          else
+            persistentRequests_.push_back (receiveInit<int, Packet> (recvBuf, procsFrom_[i],
+                                                                     tag, *comm_));
         }
         else { // Receiving these packet(s) from myself
           selfReceiveOffset = curBufferOffset; // Remember the offset
@@ -1753,6 +1864,17 @@ namespace Tpetra {
                                 as<int> (tmpSend.size ()),
                                 procsTo_[p], tag, *comm_);
           }
+          else if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+            if (setupRequests) {
+              ArrayRCP<const Packet> sendBuf =
+                exports.persistingView (sendPacketOffsets[p], packetsPerSend[p]);
+              persistentRequests_.push_back(isend<int, Packet> (sendBuf, procsTo_[p],
+                                                                tag, *comm_));
+            }
+          }
+          else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+            // nothing to do
+          }
           else {
             TEUCHOS_TEST_FOR_EXCEPTION(
               true, std::logic_error,
@@ -1764,6 +1886,68 @@ namespace Tpetra {
         else { // "Sending" the message to myself
           selfNum = p;
         }
+      }
+
+      if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+        // start the persistent send and receive requests
+        if (verbose_) {
+          std::ostringstream os;
+          os << "Proc " << myProcID
+             << ": doPosts(4 args, Teuchos::ArrayRCP, fast): Starting persistent requests" << endl;
+          *out_ << os.str ();
+        }
+        startAll(*comm_, persistentRequests_());
+      } else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+        ArrayRCP<int> sendcounts, sdispls, recvcounts, rdispls;
+        sendcounts.resize(comm_->getSize());
+        sdispls.resize(comm_->getSize());
+        recvcounts.resize(comm_->getSize());
+        rdispls.resize(comm_->getSize());
+
+        size_t curBufferOffset = 0;
+        size_t curLIDoffset = 0;
+        for (size_type i = 0; i < actualNumReceives; ++i) {
+          size_t totalPacketsFrom_i = 0;
+          for (size_t j = 0; j < lengthsFrom_[i]; ++j) {
+            totalPacketsFrom_i += numImportPacketsPerLID[curLIDoffset+j];
+          }
+          curLIDoffset += lengthsFrom_[i];
+          if (procsFrom_[i] != myProcID && totalPacketsFrom_i) {
+            rdispls[procsFrom_[i]] = curBufferOffset * sizeof(Packet);
+            recvcounts[procsFrom_[i]] = totalPacketsFrom_i * sizeof(Packet);
+
+          }
+          else { // Receiving these packet(s) from myself
+            selfReceiveOffset = curBufferOffset; // Remember the offset
+          }
+          curBufferOffset += totalPacketsFrom_i;
+        }
+
+        for (size_t i = 0; i < numBlocks; ++i) {
+          size_t p = i + procIndex;
+          if (p > (numBlocks - 1)) {
+            p -= numBlocks;
+          }
+          if (procsTo_[p] != myProcID && packetsPerSend[p] > 0) {
+            sdispls[procsTo_[p]] = sendPacketOffsets[p] * sizeof(Packet);
+            sendcounts[procsTo_[p]] = packetsPerSend[p] * sizeof(Packet);
+          }
+
+        }
+
+        Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+
+        if (verbose_) {
+          std::ostringstream os;
+          os << "Proc " << myProcID
+             << ": doPosts(4 args, Teuchos::ArrayRCP, fast) Alltoallv" << endl;
+          *out_ << os.str ();
+        }
+        Teuchos::ConstValueTypeSerializationBuffer<int,Packet> charSendBuffer(exports.size(), exports.getRawPtr());
+        Teuchos::ValueTypeSerializationBuffer<int,Packet> charRecvBuffer(imports.size(), imports.getRawPtr());
+        MPI_Alltoallv(charSendBuffer.getCharBuffer(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_CHAR,
+                      charRecvBuffer.getCharBuffer(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_CHAR,
+                      *rawComm);
       }
 
       if (selfMessage_) {
@@ -1794,6 +1978,12 @@ namespace Tpetra {
         std::logic_error,
         "Tpetra::Distributor::doPosts(4 args, Teuchos::ArrayRCP): "
         "The \"send buffer\" code path may not necessarily work with nonblocking sends.");
+
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        sendType == Details::DISTRIBUTOR_PERSISTENT,
+        std::logic_error,
+        "Tpetra::Distributor::doPosts(4 args, Teuchos::ArrayRCP): "
+        "The \"send buffer\" code path does not work with persistent sends.");
 
       Array<size_t> indicesOffsets (numExportPacketsPerLID.size(), 0);
       size_t ioffset = 0;
@@ -2064,6 +2254,8 @@ namespace Tpetra {
     using Teuchos::includesVerbLevel;
     using Teuchos::ireceive;
     using Teuchos::isend;
+    using Teuchos::receiveInit;
+    using Teuchos::sendInit;
     using Teuchos::OSTab;
     using Teuchos::readySend;
     using Teuchos::send;
@@ -2203,12 +2395,21 @@ namespace Tpetra {
       *out_ << os.str ();
     }
 
+    bool setupRequests;
+    if ((sendType == Details::DISTRIBUTOR_ALLTOALL) ||
+        (sendType == Details::DISTRIBUTOR_ONESIDED))
+      setupRequests = false;
+    else
+      setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
+                        (persistentRequests_.size() == 0)));
+
+
     // Post the nonblocking receives.  It's common MPI wisdom to post
     // receives before sends.  In MPI terms, this means favoring
     // adding to the "posted queue" (of receive requests) over adding
     // to the "unexpected queue" (of arrived messages not yet matched
     // with a receive).
-    {
+    if (setupRequests) {
 #ifdef TPETRA_DISTRIBUTOR_TIMERS
       Teuchos::TimeMonitor timeMonRecvs (*timer_doPosts3_recvs_);
 #endif // TPETRA_DISTRIBUTOR_TIMERS
@@ -2241,8 +2442,12 @@ namespace Tpetra {
             curBufLen << ").");
           imports_view_type recvBuf =
             subview_offset (imports, curBufferOffset, curBufLen);
-          requests_.push_back (ireceive<int> (recvBuf, procsFrom_[i],
-                                              tag, *comm_));
+          if (sendType != Details::DISTRIBUTOR_PERSISTENT)
+            requests_.push_back (ireceive<int> (recvBuf, procsFrom_[i],
+                                                tag, *comm_));
+          else
+            persistentRequests_.push_back (receiveInit<int> (recvBuf, procsFrom_[i],
+                                                             tag, *comm_));
         }
         else { // Receiving from myself
           selfReceiveOffset = curBufferOffset; // Remember the self-recv offset
@@ -2286,6 +2491,65 @@ namespace Tpetra {
     }
     if (procIndex == numBlocks) {
       procIndex = 0;
+    }
+
+    if (sendType == Details::DISTRIBUTOR_ONESIDED && remoteOffsets_.size() == 0) {
+      typedef typename ExpView::non_const_value_type Packet;
+      using Kokkos::Compat::persistingView;
+
+      Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+      size_t commSize = comm_->getSize();
+
+      // prepare offsets
+      Teuchos::ArrayRCP<int> localOffsets, sendcounts, sdispls, recvcounts, rdispls;
+      localOffsets.resize(commSize);
+      remoteOffsets_.resize(commSize);
+      sendcounts.resize(commSize);
+      sdispls.resize(commSize);
+
+      recvcounts.resize(commSize);
+      rdispls.resize(commSize);
+
+      for (size_t i = 0; i < commSize; i++) {
+        sendcounts[i] = 0;
+        sdispls[i] = i;
+        recvcounts[i] = 0;
+        rdispls[i] = i;
+      }
+
+      size_t curBufferOffset = 0;
+      for (size_type i = 0; i < actualNumReceives; ++i) {
+        const size_t curBufLen = lengthsFrom_[i] * numPackets;
+        if (procsFrom_[i] != myRank) {
+          localOffsets[procsFrom_[i]] = curBufferOffset;
+          sendcounts[procsFrom_[i]] = 1;
+        }
+        else { // Receiving from myself
+          selfReceiveOffset = curBufferOffset; // Remember the self-recv offset
+        }
+        curBufferOffset += curBufLen;
+      }
+
+      for (size_t i = 0; i < numBlocks; ++i) {
+        size_t p = i + procIndex;
+        if (p > (numBlocks - 1)) {
+          p -= numBlocks;
+        }
+
+        if (procsTo_[p] != myRank) {
+          recvcounts[procsTo_[p]] = 1;
+        }
+      }
+
+      // exchange offsets
+      MPI_Alltoallv(localOffsets.getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_INT,
+                    remoteOffsets_.getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_INT,
+                    *rawComm);
+
+      // create window
+      MPI_Win_create(persistingView (imports).getRawPtr(),imports.size(),sizeof(Packet),MPI_INFO_NULL,*rawComm,&Win_);
+      MPI_Win_lock_all(0,Win_);
+
     }
 
     size_t selfNum = 0;
@@ -2346,6 +2610,27 @@ namespace Tpetra {
             ssend<int> (tmpSend,
                         as<int> (tmpSend.size ()),
                         procsTo_[p], tag, *comm_);
+          }
+          else if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+            if (setupRequests) {
+              exports_view_type sendBuf =
+                subview_offset (exports, startsTo_[p] * numPackets,
+                                lengthsTo_[p] * numPackets);
+              persistentRequests_.push_back(sendInit<int> (sendBuf, procsTo_[p],
+                                                           tag, *comm_));
+            }
+          } else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+            // nothing to do
+          }
+          else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+            typedef typename ExpView::non_const_value_type Packet;
+
+            int ierr = MPI_Put(Kokkos::Compat::persistingView(tmpSend).getRawPtr(),sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                               procsTo_[p],
+                               remoteOffsets_[procsTo_[p]],sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                               Win_);
+            TEUCHOS_ASSERT(ierr == MPI_SUCCESS);
+
           } else {
             TEUCHOS_TEST_FOR_EXCEPTION(
               true,
@@ -2359,6 +2644,69 @@ namespace Tpetra {
           selfNum = p;
         }
       }
+
+      if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+        // start the persistent send and receive requests
+        if (verbose_) {
+          std::ostringstream os;
+          os << "Proc " << myRank << ": Starting persistent requests" << endl;
+          *out_ << os.str ();
+        }
+        startAll(*comm_, persistentRequests_());
+      } else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+        typedef typename ExpView::non_const_value_type Packet;
+        using Kokkos::Compat::persistingView;
+
+        Teuchos::ArrayRCP<int> sendcounts, sdispls, recvcounts, rdispls;
+        size_t commSize = comm_->getSize();
+        sendcounts.resize(commSize);
+        sdispls.resize(commSize);
+        recvcounts.resize(commSize);
+        rdispls.resize(commSize);
+
+        size_t curBufferOffset = 0;
+        for (size_type i = 0; i < actualNumReceives; ++i) {
+          const size_t curBufLen = lengthsFrom_[i] * numPackets*sizeof(Packet);
+          if (procsFrom_[i] != myRank) {
+            rdispls[procsFrom_[i]] = curBufferOffset;
+            recvcounts[procsFrom_[i]] = curBufLen;
+          }
+          else { // Receiving from myself
+            selfReceiveOffset = curBufferOffset; // Remember the self-recv offset
+          }
+          curBufferOffset += curBufLen;
+        }
+
+        for (size_t i = 0; i < numBlocks; ++i) {
+          size_t p = i + procIndex;
+          if (p > (numBlocks - 1)) {
+            p -= numBlocks;
+          }
+          if (procsTo_[p] != myRank) {
+            sdispls[procsTo_[p]] = startsTo_[p]*numPackets*sizeof(Packet);
+            sendcounts[procsTo_[p]] = lengthsTo_[p]*numPackets*sizeof(Packet);
+          }
+        }
+
+        Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+
+        // kick off alltoallv
+        if (verbose_) {
+          std::ostringstream os;
+          os << "Proc " << myRank << ": doPosts(3 args, Kokkos, fast): Calling Alltoallv" << endl;
+          *out_ << os.str ();
+        }
+        MPI_Alltoallv(persistingView (exports).getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_CHAR,
+                      persistingView (imports).getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_CHAR,
+                      *rawComm);
+
+      }
+      else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+        MPI_Win_flush_all(Win_);
+        if (barrierOneSided_)
+          comm_->barrier();
+      }
+
 
       if (selfMessage_) {
         if (verbose_) {
@@ -2406,6 +2754,13 @@ namespace Tpetra {
         std::logic_error,
         "Tpetra::Distributor::doPosts(3 args, Kokkos): The \"send buffer\" code path "
         "doesn't currently work with nonblocking sends.");
+
+      // FIXME (CAG 01 April 2019) This does not work for Persistent.
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        sendType == Details::DISTRIBUTOR_PERSISTENT,
+        std::logic_error,
+        "Tpetra::Distributor::doPosts(3 args, Kokkos): The \"send buffer\" code path "
+        "doesn't currently work with persistent send requests.");
 
       for (size_t i = 0; i < numBlocks; ++i) {
         size_t p = i + procIndex;
@@ -2509,6 +2864,8 @@ namespace Tpetra {
     using Teuchos::as;
     using Teuchos::ireceive;
     using Teuchos::isend;
+    using Teuchos::receiveInit;
+    using Teuchos::sendInit;
     using Teuchos::readySend;
     using Teuchos::send;
     using Teuchos::ssend;
@@ -2629,12 +2986,20 @@ namespace Tpetra {
       as<size_type> (selfMessage_ ? 1 : 0);
     requests_.resize (0);
 
+    bool setupRequests;
+    if ((sendType == Details::DISTRIBUTOR_ALLTOALL) ||
+        (sendType == Details::DISTRIBUTOR_ONESIDED))
+      setupRequests = false;
+    else
+      setupRequests = (((sendType != Details::DISTRIBUTOR_PERSISTENT) ||
+                        (persistentRequests_.size() == 0)));
+
     // Post the nonblocking receives.  It's common MPI wisdom to post
     // receives before sends.  In MPI terms, this means favoring
     // adding to the "posted queue" (of receive requests) over adding
     // to the "unexpected queue" (of arrived messages not yet matched
     // with a receive).
-    {
+    if (setupRequests) {
 #ifdef TPETRA_DISTRIBUTOR_TIMERS
       Teuchos::TimeMonitor timeMonRecvs (*timer_doPosts4_recvs_);
 #endif // TPETRA_DISTRIBUTOR_TIMERS
@@ -2658,8 +3023,12 @@ namespace Tpetra {
           // 2. Start the Irecv and save the resulting request.
           imports_view_type recvBuf =
             subview_offset (imports, curBufferOffset, totalPacketsFrom_i);
-          requests_.push_back (ireceive<int> (recvBuf, procsFrom_[i],
-                                              tag, *comm_));
+          if (sendType != Details::DISTRIBUTOR_PERSISTENT)
+            requests_.push_back (ireceive<int> (recvBuf, procsFrom_[i],
+                                                tag, *comm_));
+          else
+            persistentRequests_.push_back (receiveInit<int> (recvBuf, procsFrom_[i],
+                                                             tag, *comm_));
         }
         else { // Receiving these packet(s) from myself
           selfReceiveOffset = curBufferOffset; // Remember the offset
@@ -2711,6 +3080,71 @@ namespace Tpetra {
       procIndex = 0;
     }
 
+    if (sendType == Details::DISTRIBUTOR_ONESIDED && remoteOffsets_.size() == 0) {
+      typedef typename ExpView::non_const_value_type Packet;
+      using Kokkos::Compat::persistingView;
+
+      Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+      size_t commSize = comm_->getSize();
+
+      // prepare offsets
+      Teuchos::ArrayRCP<int> localOffsets, sendcounts, sdispls, recvcounts, rdispls;
+      localOffsets.resize(commSize);
+      remoteOffsets_.resize(commSize);
+      sendcounts.resize(commSize);
+      sdispls.resize(commSize);
+
+      recvcounts.resize(commSize);
+      rdispls.resize(commSize);
+
+      for (size_t i = 0; i < commSize; i++) {
+        sendcounts[i] = 0;
+        sdispls[i] = i;
+        recvcounts[i] = 0;
+        rdispls[i] = i;
+      }
+
+      size_t curBufferOffset = 0;
+      size_t curLIDoffset = 0;
+      for (size_type i = 0; i < actualNumReceives; ++i) {
+        size_t totalPacketsFrom_i = 0;
+        for (size_t j = 0; j < lengthsFrom_[i]; ++j) {
+          totalPacketsFrom_i += numImportPacketsPerLID[curLIDoffset+j];
+        }
+        curLIDoffset += lengthsFrom_[i];
+        if (procsFrom_[i] != myProcID && totalPacketsFrom_i) {
+          localOffsets[procsFrom_[i]] = curBufferOffset;
+          sendcounts[procsFrom_[i]] = 1;
+        }
+        else { // Receiving these packet(s) from myself
+          selfReceiveOffset = curBufferOffset; // Remember the offset
+        }
+        curBufferOffset += totalPacketsFrom_i;
+      }
+
+      for (size_t i = 0; i < numBlocks; ++i) {
+        size_t p = i + procIndex;
+        if (p > (numBlocks - 1)) {
+          p -= numBlocks;
+        }
+
+        if (procsTo_[p] != myProcID && packetsPerSend[p] > 0) {
+          recvcounts[procsTo_[p]] = 1;
+        }
+      }
+
+      // exchange offsets
+      MPI_Alltoallv(localOffsets.getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_INT,
+                    remoteOffsets_.getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_INT,
+                    *rawComm);
+
+
+      // create window
+      MPI_Win_create(persistingView (imports).getRawPtr(),imports.size(),sizeof(Packet),MPI_INFO_NULL,*rawComm,&Win_);
+      MPI_Win_lock_all(0,Win_);
+
+    }
+
     size_t selfNum = 0;
     size_t selfIndex = 0;
     if (indicesTo_.empty()) {
@@ -2754,6 +3188,25 @@ namespace Tpetra {
                         as<int> (tmpSend.size ()),
                         procsTo_[p], tag, *comm_);
           }
+          else if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+            if (setupRequests) {
+              exports_view_type sendBuf =
+                subview_offset (exports, sendPacketOffsets[p], packetsPerSend[p]);
+              persistentRequests_.push_back(sendInit<int> (sendBuf, procsTo_[p],
+                                                           tag, *comm_));
+            }
+          }
+          else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+            // nothing to do
+          }
+          else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+            typedef typename ExpView::non_const_value_type Packet;
+
+            MPI_Put(Kokkos::Compat::persistingView(tmpSend).getRawPtr(),sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                    procsTo_[p],
+                    remoteOffsets_[procsTo_[p]],sizeof(Packet)*tmpSend.size(),MPI_CHAR,
+                    Win_);
+          }
           else {
             TEUCHOS_TEST_FOR_EXCEPTION(
               true, std::logic_error,
@@ -2765,6 +3218,74 @@ namespace Tpetra {
         else { // "Sending" the message to myself
           selfNum = p;
         }
+      }
+
+      if (sendType == Details::DISTRIBUTOR_PERSISTENT) {
+        // start the persistent send and receive requests
+        if (verbose_) {
+          std::ostringstream os;
+          os << "Proc " << myProcID
+             << ": doPosts(4 args, Kokkos, fast): Starting persistent requests" << endl;
+          *out_ << os.str ();
+        }
+        startAll(*comm_, persistentRequests_());
+      } else if (sendType == Details::DISTRIBUTOR_ALLTOALL) {
+
+        typedef typename ExpView::non_const_value_type Packet;
+        using Kokkos::Compat::persistingView;
+
+        Teuchos::ArrayRCP<int> sendcounts, sdispls, recvcounts, rdispls;
+        size_t commSize = comm_->getSize();
+        sendcounts.resize(commSize);
+        sdispls.resize(commSize);
+        recvcounts.resize(commSize);
+        rdispls.resize(commSize);
+
+        size_t curBufferOffset = 0;
+        size_t curLIDoffset = 0;
+        for (size_type i = 0; i < actualNumReceives; ++i) {
+          size_t totalPacketsFrom_i = 0;
+          for (size_t j = 0; j < lengthsFrom_[i]; ++j) {
+            totalPacketsFrom_i += numImportPacketsPerLID[curLIDoffset+j];
+          }
+          curLIDoffset += lengthsFrom_[i];
+          if (procsFrom_[i] != myProcID && totalPacketsFrom_i) {
+            rdispls[procsFrom_[i]] = curBufferOffset*sizeof(Packet);
+            recvcounts[procsFrom_[i]] = totalPacketsFrom_i*sizeof(Packet);
+          }
+          else { // Receiving these packet(s) from myself
+            selfReceiveOffset = curBufferOffset; // Remember the offset
+          }
+          curBufferOffset += totalPacketsFrom_i;
+        }
+
+        for (size_t i = 0; i < numBlocks; ++i) {
+          size_t p = i + procIndex;
+          if (p > (numBlocks - 1)) {
+            p -= numBlocks;
+          }
+          if (procsTo_[p] != myProcID) {
+            sdispls[procsTo_[p]] = sendPacketOffsets[p]*sizeof(Packet);
+            sendcounts[procsTo_[p]] = packetsPerSend[p]*sizeof(Packet);
+          }
+        }
+
+        Teuchos::RCP<const Teuchos::OpaqueWrapper<MPI_Comm> > rawComm = Teuchos::rcp_dynamic_cast<const Teuchos::MpiComm<int> >(comm_)->getRawMpiComm();
+
+        // kick off alltoallv
+        if (verbose_) {
+          std::ostringstream os;
+          os << "Proc " << myProcID << ": doPosts(4 args, Kokkos, fast) Calling Alltoallv" << endl;
+          *out_ << os.str ();
+        }
+        MPI_Alltoallv(persistingView (exports).getRawPtr(), sendcounts.getRawPtr(), sdispls.getRawPtr(), MPI_CHAR,
+                      persistingView (imports).getRawPtr(), recvcounts.getRawPtr(), rdispls.getRawPtr(), MPI_CHAR,
+                      *rawComm);
+      }
+      else if (sendType == Details::DISTRIBUTOR_ONESIDED) {
+        MPI_Win_flush_all(Win_);
+        if (barrierOneSided_)
+          comm_->barrier();
       }
 
       if (selfMessage_) {
@@ -2796,6 +3317,12 @@ namespace Tpetra {
         std::logic_error,
         "Tpetra::Distributor::doPosts(4 args, Kokkos): "
         "The \"send buffer\" code path may not necessarily work with nonblocking sends.");
+
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        sendType == Details::DISTRIBUTOR_PERSISTENT,
+        std::logic_error,
+        "Tpetra::Distributor::doPosts(4 args, Kokkos): "
+        "The \"send buffer\" code path does not work with persistent sends.");
 
       Array<size_t> indicesOffsets (numExportPacketsPerLID.size(), 0);
       size_t ioffset = 0;

@@ -62,6 +62,15 @@ namespace Tpetra {
       else if (sendType == DISTRIBUTOR_SSEND) {
         return "Ssend";
       }
+      else if (sendType == DISTRIBUTOR_PERSISTENT) {
+        return "Persistent";
+      }
+      else if (sendType == DISTRIBUTOR_ALLTOALL) {
+        return "Alltoall";
+      }
+      else if (sendType == DISTRIBUTOR_ONESIDED) {
+        return "One-sided";
+      }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument, "Invalid "
           "EDistributorSendType enum value " << sendType << ".");
@@ -98,6 +107,9 @@ namespace Tpetra {
     sendTypes.push_back ("Rsend");
     sendTypes.push_back ("Send");
     sendTypes.push_back ("Ssend");
+    sendTypes.push_back ("Persistent");
+    sendTypes.push_back ("Alltoall");
+    sendTypes.push_back ("One-sided");
     return sendTypes;
   }
 
@@ -110,6 +122,8 @@ namespace Tpetra {
     const bool tpetraDistributorDebugDefault = false;
     // Default value of the "Barrier between receives and sends" parameter.
     const bool barrierBetween_default = false;
+    // Default value of the "Barrier for one-sided communication" parameter.
+    const bool barrierOneSided_default = true;
     // Default value of the "Use distinct tags" parameter.
     const bool useDistinctTags_default = true;
   } // namespace (anonymous)
@@ -152,6 +166,7 @@ namespace Tpetra {
     , howInitialized_ (Details::DISTRIBUTOR_NOT_INITIALIZED)
     , sendType_ (Details::DISTRIBUTOR_SEND)
     , barrierBetween_ (barrierBetween_default)
+    , barrierOneSided_ (barrierOneSided_default)
     , verbose_ (tpetraDistributorDebugDefault)
     , selfMessage_ (false)
     , numSends_ (0)
@@ -163,6 +178,8 @@ namespace Tpetra {
     , useDistinctTags_ (useDistinctTags_default)
   {
     TEUCHOS_ASSERT( ! out_.is_null () );
+
+    persistentRequests_.resize (0);
 
     this->setParameterList (plist); // sets verbose_ via Behavior
 #ifdef TPETRA_DISTRIBUTOR_TIMERS
@@ -194,6 +211,7 @@ namespace Tpetra {
     , howInitialized_ (Details::DISTRIBUTOR_INITIALIZED_BY_COPY)
     , sendType_ (distributor.sendType_)
     , barrierBetween_ (distributor.barrierBetween_)
+    , barrierOneSided_ (barrierOneSided_default)
     , verbose_ (distributor.verbose_)
     , selfMessage_ (distributor.selfMessage_)
     , numSends_ (distributor.numSends_)
@@ -219,6 +237,8 @@ namespace Tpetra {
 
     TEUCHOS_ASSERT( ! out_.is_null () );
 
+    persistentRequests_.resize (0);
+
     RCP<const ParameterList> rhsList = distributor.getParameterList ();
     RCP<ParameterList> newList = rhsList.is_null () ? Teuchos::null :
       Teuchos::parameterList (*rhsList);
@@ -239,6 +259,7 @@ namespace Tpetra {
     std::swap (howInitialized_, rhs.howInitialized_);
     std::swap (sendType_, rhs.sendType_);
     std::swap (barrierBetween_, rhs.barrierBetween_);
+    std::swap (barrierOneSided_, rhs.barrierOneSided_);
     std::swap (verbose_, rhs.verbose_);
     std::swap (selfMessage_, rhs.selfMessage_);
     std::swap (numSends_, rhs.numSends_);
@@ -302,6 +323,8 @@ namespace Tpetra {
 
       const bool barrierBetween =
         plist->get<bool> ("Barrier between receives and sends");
+      const bool barrierOneSided =
+        plist->get<bool> ("Barrier for one-sided communication");
       const Details::EDistributorSendType sendType =
         getIntegralValue<Details::EDistributorSendType> (*plist, "Send type");
       const bool useDistinctTags = plist->get<bool> ("Use distinct tags");
@@ -339,12 +362,16 @@ namespace Tpetra {
       // Now that we've validated the input list, save the results.
       sendType_ = sendType;
       barrierBetween_ = barrierBetween;
+      barrierOneSided_ = barrierOneSided;
       useDistinctTags_ = useDistinctTags;
       verbose_ = debug || verboseDefault;
 
       // ParameterListAcceptor semantics require pointer identity of the
       // sublist passed to setParameterList(), so we save the pointer.
       this->setMyParamList (plist);
+
+      if (!reverseDistributor_.is_null())
+        reverseDistributor_->setParameterList (plist);
     }
   }
 
@@ -358,6 +385,7 @@ namespace Tpetra {
     using Teuchos::setStringToIntegralParameter;
 
     const bool barrierBetween = barrierBetween_default;
+    const bool barrierOneSided = barrierOneSided_default;
     const bool useDistinctTags = useDistinctTags_default;
     const bool debug = tpetraDistributorDebugDefault;
 
@@ -368,12 +396,17 @@ namespace Tpetra {
     sendTypeEnums.push_back (Details::DISTRIBUTOR_RSEND);
     sendTypeEnums.push_back (Details::DISTRIBUTOR_SEND);
     sendTypeEnums.push_back (Details::DISTRIBUTOR_SSEND);
+    sendTypeEnums.push_back (Details::DISTRIBUTOR_PERSISTENT);
+    sendTypeEnums.push_back (Details::DISTRIBUTOR_ALLTOALL);
+    sendTypeEnums.push_back (Details::DISTRIBUTOR_ONESIDED);
 
     RCP<ParameterList> plist = parameterList ("Tpetra::Distributor");
     plist->set ("Barrier between receives and sends", barrierBetween,
                 "Whether to execute a barrier between receives and sends in do"
                 "[Reverse]Posts().  Required for correctness when \"Send type\""
                 "=\"Rsend\", otherwise correct but not recommended.");
+    plist->set ("Barrier for one-sided communication", barrierOneSided,
+                "");
     setStringToIntegralParameter<Details::EDistributorSendType> ("Send type",
       defaultSendType, "When using MPI, the variant of send to use in "
       "do[Reverse]Posts()", sendTypes(), sendTypeEnums(), plist.getRawPtr());
@@ -448,6 +481,7 @@ namespace Tpetra {
     reverseDistributor_->howInitialized_ = Details::DISTRIBUTOR_INITIALIZED_BY_REVERSE;
     reverseDistributor_->sendType_ = sendType_;
     reverseDistributor_->barrierBetween_ = barrierBetween_;
+    reverseDistributor_->barrierOneSided_ = barrierOneSided_;
     reverseDistributor_->verbose_ = verbose_;
 
     // The total length of all the sends of this Distributor.  We
@@ -538,8 +572,13 @@ namespace Tpetra {
       std::ostringstream os;
       os << myRank << ": doWaits: # reqs = "
          << requests_.size () << endl;
+      os << myRank << ": doWaits: # persistentReqs = "
+         << persistentRequests_.size () << endl;
       *out_ << os.str ();
     }
+
+    if (persistentRequests_.size() > 0)
+      waitAll(*comm_, persistentRequests_(), /*releaseRequests=*/false);
 
     if (requests_.size() > 0) {
       waitAll (*comm_, requests_());
@@ -585,6 +624,12 @@ namespace Tpetra {
   void Distributor::doReverseWaits() {
     // call doWaits() on the reverse Distributor, if it exists
     if (! reverseDistributor_.is_null()) {
+      if (verbose_) {
+        const int myRank = comm_->getRank ();
+        std::ostringstream os;
+        os << myRank << ": doWaits reverse" << std::endl;
+        *out_ << os.str ();
+      }
       reverseDistributor_->doWaits();
     }
   }
@@ -604,6 +649,8 @@ namespace Tpetra {
         << DistributorSendTypeEnumToString (sendType_)
         << ", Barrier between receives and sends: "
         << (barrierBetween_ ? "true" : "false")
+        << ", Barrier for one-sided communication: "
+        << (barrierOneSided_ ? "true" : "false")
         << ", Use distinct tags: "
         << (useDistinctTags_ ? "true" : "false")
         << ", Debug: " << (verbose_ ? "true" : "false")
@@ -720,6 +767,8 @@ namespace Tpetra {
             << DistributorSendTypeEnumToString (sendType_) << endl
             << "\"Barrier between receives and sends\": "
             << (barrierBetween_ ? "true" : "false") << endl
+            << ", Barrier for one-sided communication: "
+            << (barrierOneSided_ ? "true" : "false") << endl
             << "\"Use distinct tags\": "
             << (useDistinctTags_ ? "true" : "false") << endl
             << "\"Debug\": " << (verbose_ ? "true" : "false") << endl;
