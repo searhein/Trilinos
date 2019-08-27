@@ -119,6 +119,8 @@ int main(int argc, char *argv[])
     My_CLP.setOption("M",&M,"H / h.");
     int Dimension = 2;
     My_CLP.setOption("DIM",&Dimension,"Dimension.");
+    int Iterations = 2;
+    My_CLP.setOption("ITS",&Iterations,"Iterations.");
     string xmlFile = "ParameterList.xml";
     My_CLP.setOption("PLIST",&xmlFile,"File name of the parameter list.");
     bool useepetra = false;
@@ -209,10 +211,10 @@ int main(int argc, char *argv[])
         y->putScalar(ScalarTraits<SC>::zero());
         
         Comm->barrier(); if (Comm->getRank()==0) cout << "##############################\n# Apply Coarse Operator #\n##############################\n" << endl;
-        
-        CoarseOperator->apply(*x,*y,true);
-        CoarseOperator->apply(*y,*x,true);
-        CoarseOperator->apply(*x,*y,true);
+        for (int i=0; i<Iterations; i++) {
+            CoarseOperator->apply(*x,*y,true);
+            *x = *y;
+        }
         
         Comm->barrier();
         SC norm = y->getVector(0)->norm2();
