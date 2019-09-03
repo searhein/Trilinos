@@ -44,6 +44,8 @@
 
 #include <FROSch_SchwarzOperator_def.hpp>
 
+#define PRINT_NORM
+
 
 namespace FROSch {
 

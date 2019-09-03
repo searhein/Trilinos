@@ -104,7 +104,7 @@ namespace FROSch {
             YOverlap_->replaceMap(OverlappingMatrix_->getDomainMap());
         }
         // AH 11/28/2018: replaceMap does not update the GlobalNumRows. Therefore, we have to create a new MultiVector on the serial Communicator. In Epetra, we can prevent to copy the MultiVector.
-        #ifdef HAVE_XPETRA_EPETRA
+#ifdef HAVE_XPETRA_EPETRA
         if (XTmp_->getMap()->lib() == UseEpetra) {
             if (XOverlapTmp_.is_null()) XOverlapTmp_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
             XOverlapTmp_->doImport(*XTmp_,*Scatter_,INSERT);
@@ -118,7 +118,7 @@ namespace FROSch {
             RCP<Epetra_MultiVector> epetraMultiVectorXOverlap(new Epetra_MultiVector(::View,epetraMap,A,MyLDA,x.getNumVectors()));
             XOverlap_ = RCP<EpetraMultiVectorT<GO,NO> >(new EpetraMultiVectorT<GO,NO>(epetraMultiVectorXOverlap));
         } else
-        #endif
+#endif
         {
             if (XOverlap_.is_null()) {
                 XOverlap_ = MultiVectorFactory<SC,LO,GO,NO>::Build(OverlappingMap_,x.getNumVectors());
@@ -127,6 +127,12 @@ namespace FROSch {
             }
             XOverlap_->doImport(*XTmp_,*Scatter_,INSERT);
             XOverlap_->replaceMap(OverlappingMatrix_->getRangeMap());
+#ifdef PRINT_NORM
+//            const Teuchos::ArrayView<typename Teuchos::ScalarTraits<SC>::magnitudeType> norms;
+//            XOverlap_->norm2(norms);
+//            std::cout << "MPI rank: " << this->MpiComm_->getRank() << "; norm of x: " << norms << std::endl;
+            std::cout << "[" << this->MpiComm_->getRank() << "] Norm of x: " << XOverlap_->getVector(0)->norm2() << std::endl;
+#endif
         }
         SubdomainSolver_->apply(*XOverlap_,*YOverlap_,mode,ScalarTraits<SC>::one(),ScalarTraits<SC>::zero());
         YOverlap_->replaceMap(OverlappingMap_);
