@@ -171,7 +171,13 @@ namespace FROSch {
     int OverlappingOperator<SC,LO,GO,NO>::initializeOverlappingOperator()
     {
         FROSCH_TIMER_START_LEVELID(initializeOverlappingOperatorTime,"OverlappingOperator::initializeOverlappingOperator");
+        
+        // Possibly change the Send type for this Importer
+        ParameterListPtr communicationList = sublist(this->ParameterList_,"Communication");
+        
         Scatter_ = ImportFactory<LO,GO,NO>::Build(this->getDomainMap(),OverlappingMap_);
+        Scatter_->setDistributorParameters(communicationList); // Set the parameter list for the communication of the exporter
+        
         if (Combine_ == Averaging) {
             Multiplicity_ = MultiVectorFactory<SC,LO,GO,NO>::Build(this->getRangeMap(),1);
             XMultiVectorPtr multiplicityRepeated;

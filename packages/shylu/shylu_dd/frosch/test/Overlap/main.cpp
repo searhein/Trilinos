@@ -171,6 +171,7 @@ int main(int argc, char *argv[])
     if (color==0) {
 
         RCP<ParameterList> parameterList = getParametersFromXmlFile(xmlFile);
+        RCP<ParameterList> parameterListStratimikos =  sublist(parameterList,"Stratimikos");
 
         ArrayRCP<RCP<Matrix<SC,LO,GO,NO> > > K(NumberOfBlocks);
         ArrayRCP<RCP<Map<LO,GO,NO> > > RepeatedMaps(NumberOfBlocks);
@@ -314,7 +315,7 @@ int main(int argc, char *argv[])
         RCP<const MultiVectorBase<SC> >thyraB = ThyraUtils<SC,LO,GO,NO>::toThyraMultiVector(xRightHandSide);
 
         //-----------Set Coordinates and RepMap in ParameterList--------------------------
-        RCP<ParameterList> plList =  sublist(parameterList,"Preconditioner Types");
+        RCP<ParameterList> plList =  sublist(parameterListStratimikos,"Preconditioner Types");
         sublist(plList,"FROSch")->set("Dimension",Dimension);
         sublist(plList,"FROSch")->set("Overlap",Overlap);
         if (NumberOfBlocks>1) {
@@ -363,13 +364,17 @@ int main(int argc, char *argv[])
         Comm->barrier(); if (Comm->getRank()==0) cout << "###################################\n# Stratimikos LinearSolverBuilder #\n###################################\n" << endl;
         Stratimikos::DefaultLinearSolverBuilder linearSolverBuilder;
         Stratimikos::enableFROSch<LO,GO,NO>(linearSolverBuilder);
-        linearSolverBuilder.setParameterList(parameterList);
+        linearSolverBuilder.setParameterList(parameterListStratimikos);
 
         Comm->barrier(); if (Comm->getRank()==0) cout << "######################\n# Thyra PrepForSolve #\n######################\n" << endl;
 
         RCP<LinearOpWithSolveFactoryBase<SC> > lowsFactory =
         linearSolverBuilder.createLinearSolveStrategy("");
 
+        // turn on one-sided communication
+        RCP<ParameterList> matvecParams =  sublist(parameterList,"MatVec Communication");
+        KMonolithic->getCrsGraph()->getImporter()->setDistributorParameters(matvecParams);
+        
         lowsFactory->setOStream(out);
         lowsFactory->setVerbLevel(VERB_HIGH);
 

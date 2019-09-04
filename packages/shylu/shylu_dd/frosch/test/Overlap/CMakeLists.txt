@@ -219,3 +219,15 @@ ARGS "--M=5 --DIM=3 --O=2 --DPN=3 --PLIST=ParameterLists/ParameterList_OneLevelP
 COMM mpi
 NUM_MPI_PROCS 8
 )
+
+################
+# Asynchronous #
+################
+## Tpetra
+TRIBITS_ADD_TEST(
+overlap
+NAME test_overlap_Graph_DIM2_DPN1_TPETRA_Asynchronous
+ARGS "--M=5 --DIM=2 --O=2 --DPN=1 --PLIST=ParameterLists/ParameterList_OneLevelPreconditioner_Asynchronous.xml --USETPETRA"
+COMM mpi
+NUM_MPI_PROCS 4
+)
