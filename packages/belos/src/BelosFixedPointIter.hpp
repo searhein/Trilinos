@@ -403,7 +403,8 @@ class FixedPointIter : virtual public FixedPointIteration<ScalarType,MV,OP> {
       ////////////////////////////////////////////////////////////////
       // Iterate until the status test tells us to stop.
       //
-      while (stest_->checkStatus(this) != Passed) {
+      // while (stest_->checkStatus(this) != Passed) {
+      while (iter_ < 200) {
 
         // Increment the iteration
         iter_++;
@@ -430,7 +431,8 @@ class FixedPointIter : virtual public FixedPointIteration<ScalarType,MV,OP> {
       ////////////////////////////////////////////////////////////////
       // Iterate until the status test tells us to stop.
       //
-      while (stest_->checkStatus(this) != Passed) {
+      // while (stest_->checkStatus(this) != Passed) {
+      while (iter_ < 200) {
 
         // Increment the iteration
         iter_++;
@@ -453,6 +455,7 @@ class FixedPointIter : virtual public FixedPointIteration<ScalarType,MV,OP> {
 
       } // end while (sTest_->checkStatus(this) != Passed)
     }
+    stest_->checkStatus(this);
   }
 
 } // end Belos namespace

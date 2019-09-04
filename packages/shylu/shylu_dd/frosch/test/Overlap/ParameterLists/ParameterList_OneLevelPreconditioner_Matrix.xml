@@ -9,7 +9,7 @@
                         <Parameter name="PreconditionerPosition" type="string" value="left"/>
                         <Parameter name="Block Size" type="int" value="1"/>
                         <Parameter name="Convergence Tolerance" type="double" value="1e-4"/>
-                        <Parameter name="Maximum Iterations" type="int" value="100"/>
+                        <Parameter name="Maximum Iterations" type="int" value="200"/>
                         <Parameter name="Output Frequency" type="int" value="1"/>
                         <Parameter name="Show Maximum Residual Norm Only" type="bool" value="1"/>
                     </ParameterList>
@@ -20,18 +20,27 @@
         <ParameterList name="Preconditioner Types">
             <ParameterList name="FROSch">
                 <Parameter name="FROSch Preconditioner Type"                        type="string"   value="OneLevelPreconditioner"/>
-                
+
                 <Parameter name="OverlappingOperator Type"                          type="string"   value="AlgebraicOverlappingOperator"/>
-                
+
                 <ParameterList name="AlgebraicOverlappingOperator">
+                  <ParameterList name="Communication">
+                    <Parameter name="Send type" type="string" value="One-sided"/>
+                    <Parameter name="Barrier for one-sided communication" type="bool" value="false"/>
+                  </ParameterList>
+
                     <Parameter name="Adding Layers Strategy"                        type="string"   value="CrsMatrix"/>
                     <ParameterList name="Solver">
                         <Parameter name="SolverType"                                type="string"   value="Amesos2"/>
                         <Parameter name="Solver"                                    type="string"   value="Klu"/>
                     </ParameterList>
                 </ParameterList>
-                
+
             </ParameterList>
         </ParameterList>
+    </ParameterList>
+    <ParameterList name="MatVec Communication">
+      <Parameter name="Send type" type="string" value="One-sided"/>
+      <Parameter name="Barrier for one-sided communication" type="bool" value="false"/>
     </ParameterList>
 </ParameterList>
