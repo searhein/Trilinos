@@ -112,6 +112,8 @@ namespace FROSch {
 
         int clearCoarseSpace();
 
+        int reorderSubspaces(ConstUNVecView permutation);
+
         int zeroOutBasisVectors(ConstLOVecView zeros);
 
         bool hasUnassembledMaps() const;

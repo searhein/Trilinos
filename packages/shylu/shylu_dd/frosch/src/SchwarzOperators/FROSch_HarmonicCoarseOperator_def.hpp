@@ -908,7 +908,7 @@ namespace FROSch {
         if (gathered == 0) {
             elemSGraph = tmpElemGraph;
         }
-        this->ElementNodeList_ =Xpetra::CrsGraphFactory<LO,GO,NO>::Build(this->MLCoarseMap_,maxNumElements);
+        this->ElementNodeList_ = Xpetra::CrsGraphFactory<LO,GO,NO>::Build(this->MLCoarseMap_,maxNumElements);
 
         if (this->OnCoarseSolveComm_) {
             const size_t numMyElementS = elemSGraph->getMap()->getNodeNumElements();

@@ -114,9 +114,9 @@ namespace FROSch {
         for (UN i=0; i<PartitionOfUnity_.size(); i++) {
             if (!PartitionOfUnityMaps_[i].is_null()) {
                 if (!PartitionOfUnity_[i].is_null()) {
-                    ConstXMapPtr partitionOfUnityMap_i = PartitionOfUnity_[i]->getMap();
+                    ConstXMapPtr partitionOfUnityRowMap_i = PartitionOfUnity_[i]->getMap();
                     for (UN j=0; j<NullspaceBasis_->getNumVectors(); j++) {
-                        XMultiVectorPtr entityBasis = MultiVectorFactory<SC,LO,GO,NO >::Build(partitionOfUnityMap_i,PartitionOfUnity_[i]->getNumVectors());
+                        XMultiVectorPtr entityBasis = MultiVectorFactory<SC,LO,GO,NO >::Build(partitionOfUnityRowMap_i,PartitionOfUnity_[i]->getNumVectors());
                         entityBasis->scale(ScalarTraits<SC>::zero());
                         for (UN k=0; k<PartitionOfUnity_[i]->getNumVectors(); k++) {
                             if (j<tmpBasis[i][k]->getNumVectors()) {

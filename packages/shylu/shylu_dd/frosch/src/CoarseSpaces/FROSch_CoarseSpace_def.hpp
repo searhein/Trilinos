@@ -221,6 +221,40 @@ namespace FROSch {
     }
 
     template <class SC,class LO,class GO,class NO>
+    int CoarseSpace<SC,LO,GO,NO>::reorderSubspaces(ConstUNVecView permutation)
+    {
+        FROSCH_ASSERT(permutation.size()==UnassembledBasesMaps_.size(),"permutation.size()!=UnassembledBasesMaps_.size()");
+        FROSCH_ASSERT(permutation.size()==UnassembledBasesMapsUnique_.size(),"permutation.size()!=UnassembledBasesMapsUnique_.size()");
+        FROSCH_ASSERT(permutation.size()==UnassembledSubspaceBases_.size(),"permutation.size()!=UnassembledSubspaceBases_.size()");
+        FROSCH_ASSERT(permutation.size()==Offsets_.size(),"permutation.size()!=Offsets_.size()");
+        FROSCH_ASSERT(permutation.size()==LocalSubspacesSizes_.size(),"permutation.size()!=LocalSubspacesSizes_.size()");
+
+        ConstXMapPtrVec unassembledBasesMapsNew = ConstXMapPtrVec(UnassembledBasesMaps_.size());
+        ConstXMapPtrVec unassembledBasesMapsUniqueNew = ConstXMapPtrVec(UnassembledBasesMapsUnique_.size());
+        ConstXMultiVectorPtrVec unassembledSubspaceBasesNew = ConstXMultiVectorPtrVec(UnassembledSubspaceBases_.size());
+        LOVec offsetsNew = LOVec(Offsets_.size());
+        UNVec localSubspacesSizesNew = UNVec(LocalSubspacesSizes_.size());
+
+
+        for (UN i=0; i<permutation.size(); i++) {
+            FROSCH_ASSERT((permutation[i]>=0)&&(permutation[i]<permutation.size()),"permutation[i]<0 || permutation[i]>=permutation.size()");
+            unassembledBasesMapsNew[i] = UnassembledBasesMaps_[permutation[i]];
+            unassembledBasesMapsUniqueNew[i] = UnassembledBasesMapsUnique_[permutation[i]];
+            unassembledSubspaceBasesNew[i] = UnassembledSubspaceBases_[permutation[i]];
+            offsetsNew[i] = Offsets_[permutation[i]];
+            localSubspacesSizesNew[i] = LocalSubspacesSizes_[permutation[i]];
+        }
+
+        UnassembledBasesMaps_.swap(unassembledBasesMapsNew);
+        UnassembledBasesMapsUnique_.swap(unassembledBasesMapsUniqueNew);
+        UnassembledSubspaceBases_.swap(unassembledSubspaceBasesNew);
+        Offsets_.swap(offsetsNew);
+        LocalSubspacesSizes_.swap(localSubspacesSizesNew);
+
+        return 0;
+    }
+
+    template <class SC,class LO,class GO,class NO>
     int CoarseSpace<SC,LO,GO,NO>::zeroOutBasisVectors(ConstLOVecView zeros)
     {
         FROSCH_ASSERT(!AssembledBasis_.is_null(),"FROSch::CoarseSpace : ERROR: AssembledBasis_.is_null().");
