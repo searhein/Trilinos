@@ -31,7 +31,7 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/CoarseSpaces)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/InterfaceSets)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/DomainDecomposition)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/SchwarzOperators)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/SchwarzPreconditioners)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/SolverInterfaces)
@@ -77,12 +77,12 @@ APPEND_SET(HEADERS
   CoarseSpaces/FROSch_PartitionOfUnity_def.hpp
   CoarseSpaces/FROSch_RGDSWInterfacePartitionOfUnity_decl.hpp
   CoarseSpaces/FROSch_RGDSWInterfacePartitionOfUnity_def.hpp
-  InterfaceSets/FROSch_DDInterface_decl.hpp
-  InterfaceSets/FROSch_DDInterface_def.hpp
-  InterfaceSets/FROSch_EntitySet_decl.hpp
-  InterfaceSets/FROSch_EntitySet_def.hpp
-  InterfaceSets/FROSch_InterfaceEntity_decl.hpp
-  InterfaceSets/FROSch_InterfaceEntity_def.hpp
+  DomainDecomposition/FROSch_DDInterface_decl.hpp
+  DomainDecomposition/FROSch_DDInterface_def.hpp
+  DomainDecomposition/FROSch_EntitySet_decl.hpp
+  DomainDecomposition/FROSch_EntitySet_def.hpp
+  DomainDecomposition/FROSch_InterfaceEntity_decl.hpp
+  DomainDecomposition/FROSch_InterfaceEntity_def.hpp
   SchwarzOperators/FROSch_AlgebraicOverlappingOperator_decl.hpp
   SchwarzOperators/FROSch_AlgebraicOverlappingOperator_def.hpp
   SchwarzOperators/FROSch_CoarseOperator_decl.hpp
